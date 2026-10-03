@@ -32,6 +32,17 @@ def test_demo_bundle_is_flagged_and_loads_with_weights_only(tiny_bundle_path):
     assert raw["temperature"] > 0
 
 
+def test_demo_bundle_records_the_code_version(tmp_path, monkeypatch):
+    from cavinet_ml.demo.build import code_version
+
+    monkeypatch.delenv("CAVINET_GIT_COMMIT", raising=False)
+    assert code_version() == "unknown"
+    monkeypatch.setenv("CAVINET_GIT_COMMIT", "d170f8e")
+    fast_demo(tmp_path / "model.pth", log=lambda m: None)
+    raw = torch.load(tmp_path / "model.pth", map_location="cpu", weights_only=True)
+    assert raw["git_commit"] == "d170f8e"
+
+
 def test_synthetic_volumes_are_in_the_model_input_space():
     volume = synthetic_volume(1, np.random.default_rng(0), size=32)
     assert volume.shape == (32, 32, 32) and volume.dtype == np.float16
@@ -125,6 +136,29 @@ def test_lungmask_segmenter_without_weights_is_unavailable(tmp_path):
     with pytest.raises(SegmenterUnavailable):
         segmenter(image_from(chest_volume(depth=4)))
     assert not LungmaskSegmenter(None).available
+
+
+def test_lungmask_runs_on_cpu_in_small_batches(tmp_path, monkeypatch):
+    import lungmask
+
+    created = {}
+
+    class FakeInferer:
+        def __init__(self, **kwargs):
+            created.update(kwargs)
+
+        def apply(self, image):
+            return np.ones((image.GetDepth(), image.GetHeight(), image.GetWidth()), np.uint8)
+
+    monkeypatch.setattr(lungmask, "LMInferer", FakeInferer)
+    weights = tmp_path / R231_FILENAME
+    weights.write_bytes(b"weights")
+    mask = LungmaskSegmenter(weights)(image_from(chest_volume(depth=4)))
+    assert mask.shape[0] == 4
+    # Small batches: as fast as the default of 20 on CPU, with a fraction of the memory.
+    assert created["batch_size"] == 2
+    assert created["force_cpu"] is True
+    assert created["modelpath"] == str(weights)
 
 
 LUNGMASK_WEIGHTS = os.environ.get("LUNGMASK_WEIGHTS")

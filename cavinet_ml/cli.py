@@ -4,7 +4,7 @@ import argparse
 import os
 from collections.abc import Sequence
 
-from cavinet_ml import __version__
+from cavinet_ml import __version__, hide_library_notices
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    hide_library_notices()
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "fetch-model":

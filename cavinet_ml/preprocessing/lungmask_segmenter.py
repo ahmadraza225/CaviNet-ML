@@ -19,10 +19,18 @@ R231_SHA256 = "d5d2fc3df432115933491f115b283e94d1f5c841c0e82f6e7bd2d65d3ccde69f"
 R231_URL = f"https://github.com/JoHof/lungmask/releases/download/v0.0/{R231_FILENAME}"
 
 
+# Slices per forward pass. On CPU small batches are as fast as lungmask's default of 20 and
+# need far less memory (measured on 100 slices of 512 x 512: batch 20 took 57 s and 2.9 GB
+# extra, batch 2 took 44 s and 0.5 GB). The mask does not depend on it (BatchNorm in eval).
+BATCH_SIZE = 2
+
+
 class LungmaskSegmenter:
     """Callable segmenter; the model is loaded on first use and then reused."""
 
-    def __init__(self, weights_path: str | os.PathLike | None, batch_size: int = 20) -> None:
+    def __init__(
+        self, weights_path: str | os.PathLike | None, batch_size: int = BATCH_SIZE
+    ) -> None:
         self.weights_path = Path(weights_path) if weights_path else None
         self.batch_size = batch_size
         self._inferer = None
