@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cavinet-ml"
+version = "0.1.0"
+description = "CaviNet AI pipeline: preprocessing, model, inference, training and evaluation"
+requires-python = ">=3.11"
+# Imaging and deep-learning dependencies are added in Phases 5 and 6.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
+
+[project.scripts]
+cavinet-ml = "cavinet_ml.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cavinet_ml*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["cavinet_ml"]
