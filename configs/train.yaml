@@ -1,0 +1,53 @@
+# CaviNet training configuration: every value from section 11.4 (and the model of 11.2)
+# of docs/scope/CaviNet_Scope_Document_v2.md. `cavinet-ml train` saves a copy with each run.
+# Changing a value here changes the approved method: record why in the pull request.
+
+seed: 42
+
+model:
+  architecture: monai_resnet18 # 3D ResNet-18 (MONAI), 1 input channel, 1 output logit
+  dropout: 0.3 # before the final layer
+  # MedicalNet ResNet-18 weights (pretrained on 23 3D medical datasets) when available, else
+  # training from scratch; the choice is recorded in the model card. Values: medicalnet,
+  # none, or the path of a downloaded resnet_18_23dataset.pth.
+  pretrained: medicalnet
+
+loss:
+  name: bce_with_logits # positive class TB
+  pos_weight: auto # (#NTM / #TB) of the training fold
+
+optimizer:
+  name: adamw
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+
+schedule:
+  name: cosine
+  warmup_epochs: 3
+
+epochs:
+  max: 60
+  early_stopping_metric: val_auc
+  patience: 12 # best checkpoint kept
+
+batch:
+  size: 4 # per step, with mixed precision on the GPU
+  effective_size: 16 # gradient accumulation (fits 8 GB of GPU memory)
+  amp: true
+  auto_reduce_on_oom: true # halve the batch (keeping the effective size) if memory is short
+
+augmentation: # training only
+  flip_left_right_p: 0.5
+  rotate_degrees: 10
+  scale: [0.9, 1.1]
+  translate_voxels: 8
+  intensity_scale: 0.10 # ±10%
+  gaussian_noise_std: 0.01
+
+data:
+  num_workers: 4 # data-loading processes
+
+logging: # per fold
+  tensorboard: true
+  csv: true
+  curves_png: true

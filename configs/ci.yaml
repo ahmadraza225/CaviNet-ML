@@ -1,0 +1,50 @@
+# The synthetic end-to-end test in CI: the full section 11.4 recipe and the full-size
+# network, cut down only where a CPU run of a few minutes needs it. Never use it for the
+# real dataset.
+
+seed: 42
+
+model:
+  architecture: monai_resnet18
+  dropout: 0.3
+  pretrained: none # no download in CI
+
+loss:
+  name: bce_with_logits
+  pos_weight: auto
+
+optimizer:
+  name: adamw
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+
+schedule:
+  name: cosine
+  warmup_epochs: 3
+
+epochs:
+  max: 1
+  early_stopping_metric: val_auc
+  patience: 12
+
+batch:
+  size: 2
+  effective_size: 4
+  amp: true # used only on a GPU
+  auto_reduce_on_oom: true
+
+augmentation:
+  flip_left_right_p: 0.5
+  rotate_degrees: 10
+  scale: [0.9, 1.1]
+  translate_voxels: 8
+  intensity_scale: 0.10
+  gaussian_noise_std: 0.01
+
+data:
+  num_workers: 0
+
+logging:
+  tensorboard: true
+  csv: true
+  curves_png: true
