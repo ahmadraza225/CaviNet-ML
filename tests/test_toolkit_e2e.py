@@ -89,9 +89,9 @@ def test_every_step_leaves_its_outputs(pipeline):
         docs / "audit" / "evaluation_runs.jsonl",
     ):
         assert path.is_file(), path
-    splits = json.loads((pipeline["root"] / "splits.json").read_text())
+    splits = json.loads((pipeline["root"] / "splits.json").read_text(encoding="utf-8"))
     assert splits["n_folds"] == 2 and len(splits["excluded"]) == 3
-    report = (docs / "EVALUATION_REPORT.md").read_text()
+    report = (docs / "EVALUATION_REPORT.md").read_text(encoding="utf-8")
     assert "SYNTHETIC REHEARSAL" in report and "## Locked test set" in report
 
 
@@ -117,6 +117,10 @@ def test_a_second_test_evaluation_is_refused(pipeline, capsys):
     assert main(again) == EXIT_REFUSED
     assert "already evaluated" in capsys.readouterr().err
     assert main([*again, "--force"]) == EXIT_ERROR
-    log = (pipeline["docs"] / "audit" / "evaluation_runs.jsonl").read_text().splitlines()
+    log = (
+        (pipeline["docs"] / "audit" / "evaluation_runs.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
     statuses = [json.loads(line)["status"] for line in log if json.loads(line)["split"] == "test"]
     assert statuses == ["started", "completed", "refused"]

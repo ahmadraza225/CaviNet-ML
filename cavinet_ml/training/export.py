@@ -92,8 +92,8 @@ def _fold_runs(runs_dir: Path, n_folds: int) -> list[dict[str, Any]]:
             {
                 "fold": fold,
                 "best": torch.load(best, map_location="cpu", weights_only=True),
-                "info": json.loads(info.read_text()),
-                "config": (run_dir / "config.yaml").read_text(),
+                "info": json.loads(info.read_text(encoding="utf-8")),
+                "config": (run_dir / "config.yaml").read_text(encoding="utf-8"),
             }
         )
     if len({r["info"]["config_sha256"] for r in runs}) != 1:
@@ -187,7 +187,7 @@ def export_bundle(
     check = verify_bundle(out, cache_dir, splits.dev[0])
     card = write_model_card(out)
     if model_card_md is not None:
-        write_model_card_md(json.loads(card.read_text()), model_card_md)
+        write_model_card_md(json.loads(card.read_text(encoding="utf-8")), model_card_md)
     log(
         f"Wrote {out} ({out.stat().st_size / 1e6:.0f} MB, {len(states)} folds, "
         f"{'DEMO' if is_demo else 'real'}), {card}"
@@ -224,7 +224,7 @@ def update_bundle_metrics(
     save_bundle(bundle, path)
     card = write_model_card(path)
     if model_card_md is not None:
-        write_model_card_md(json.loads(card.read_text()), model_card_md)
+        write_model_card_md(json.loads(card.read_text(encoding="utf-8")), model_card_md)
 
 
 def bundle_metadata(path: Path) -> dict[str, Any]:

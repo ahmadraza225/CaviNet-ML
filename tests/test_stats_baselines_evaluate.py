@@ -226,9 +226,12 @@ def test_clinical_baseline_uses_the_same_folds_and_learns_the_age_signal(evaluat
     )
     assert summary["n"] == 24 and len(summary["auc_per_fold"]) == 2
     assert summary["auc"] > 0.6  # TB patients are younger in the test workspace
-    lines = (ws.baselines / "clinical_oof.csv").read_text().splitlines()
+    lines = (ws.baselines / "clinical_oof.csv").read_text(encoding="utf-8").splitlines()
     assert lines[0] == "case_id,fold,label,probability" and len(lines) == 25
-    assert json.loads((ws.baselines / "clinical.json").read_text())["auc"] == summary["auc"]
+    assert (
+        json.loads((ws.baselines / "clinical.json").read_text(encoding="utf-8"))["auc"]
+        == summary["auc"]
+    )
 
 
 def test_out_of_fold_predictions_learn_a_real_signal():
@@ -288,7 +291,7 @@ def test_compare_runs_delong_on_the_development_set(evaluated):
 def test_development_report_before_the_test_set(evaluated):
     ws = evaluated
     evaluation.evaluate_dev(ws, **QUIET)
-    text = ws.report.read_text()
+    text = ws.report.read_text(encoding="utf-8")
     assert "## Cross-validation (development set)" in text and "Not evaluated yet" in text
     assert "SYNTHETIC REHEARSAL" in text and "Clinical-only baseline" in text
     assert (ws.figures / "roc_dev.png").is_file() and (ws.figures / "training_curves.png").is_file()
@@ -304,14 +307,14 @@ def test_locked_test_set_is_evaluated_once(evaluated):
     assert {r["group"] for r in results["subgroups"]} == {"sex", "age band", "manufacturer"}
     for name in ("roc_test", "reliability_test", "confusion_test", "scores_test", "subgroups_test"):
         assert (ws.figures / f"{name}.png").is_file()
-    text = ws.report.read_text()
+    text = ws.report.read_text(encoding="utf-8")
     assert "## Locked test set" in text and "H1:" in text and "| AUC |" in text
     bundle = load_bundle(ws.bundle)
     assert bundle["metrics"]["locked_test"]["n"] == 6
-    assert "Evaluated once on 6 patients" in ws.model_card_md.read_text()
+    assert "Evaluated once on 6 patients" in ws.model_card_md.read_text(encoding="utf-8")
     assert (
         (ws.evaluation / "test_predictions.csv")
-        .read_text()
+        .read_text(encoding="utf-8")
         .startswith("case_id,label,ct_probability")
     )
 

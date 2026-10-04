@@ -68,7 +68,9 @@ class EvaluationRefused(EvaluationError):
 def read_log(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 def append_log(path: Path, entry: dict[str, Any]) -> dict[str, Any]:
@@ -81,7 +83,7 @@ def append_log(path: Path, entry: dict[str, Any]) -> dict[str, Any]:
         **entry,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as handle:
+    with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
     return entry
 
@@ -107,7 +109,7 @@ def _histories(runs_dir: Path, n_folds: int) -> dict[int, list[dict[str, Any]]]:
     for fold in range(n_folds):
         path = runs_dir / f"fold_{fold}" / "train_log.csv"
         if path.is_file():
-            with path.open(newline="") as handle:
+            with path.open(newline="", encoding="utf-8") as handle:
                 histories[fold] = [
                     {
                         k: float(v) if k not in ("epoch", "batch_size") else int(v)
@@ -120,7 +122,7 @@ def _histories(runs_dir: Path, n_folds: int) -> dict[int, list[dict[str, Any]]]:
 
 def _baseline_dev(ws: Workspace, kind: str) -> dict[str, Any] | None:
     path = ws.baselines / f"{kind}.json"
-    return json.loads(path.read_text()) if path.is_file() else None
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
 
 def _curve(label: str, labels, scores, auc_ci=None) -> dict[str, Any]:
@@ -194,7 +196,7 @@ def _data_summary(ws: Workspace) -> dict[str, Any]:
 def evaluate_dev(ws: Workspace, log: Callable[[str], None] = print) -> dict[str, Any]:
     dev = development_results(ws, log)
     test_path = ws.evaluation / "test_results.json"
-    test = json.loads(test_path.read_text()) if test_path.is_file() else None
+    test = json.loads(test_path.read_text(encoding="utf-8")) if test_path.is_file() else None
     write_report(ws.report, data=_data_summary(ws), dev=dev, test=test)
     append_log(
         ws.evaluation_log,
@@ -464,7 +466,7 @@ def _locked_test(
         "figures": {k: str(v) for k, v in paths.items()},
     }
     ws.evaluation.mkdir(parents=True, exist_ok=True)
-    with (ws.evaluation / "test_predictions.csv").open("w", newline="") as handle:
+    with (ws.evaluation / "test_predictions.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["case_id", "label", "ct_probability", "ct_logit", "clinical", "metadata"])
         for i, case_id in enumerate(ids):
@@ -479,7 +481,7 @@ def _locked_test(
                 ]
             )
     (ws.evaluation / "test_results.json").write_text(
-        json.dumps(results, indent=2, default=float) + "\n"
+        json.dumps(results, indent=2, default=float) + "\n", encoding="utf-8"
     )
 
     dev = development_results(ws, log)
@@ -544,7 +546,7 @@ def compare(
     result.update(a=a, b=b, split=split, created_at=datetime.now(UTC).isoformat(timespec="seconds"))
     ws.baselines.mkdir(parents=True, exist_ok=True)
     out = ws.baselines / f"compare_{Path(a).stem}_vs_{Path(b).stem}_{split}.json"
-    out.write_text(json.dumps(result, indent=2) + "\n")
+    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     detail = (
         f"(95% CI {result['ci'][0]:+.3f} to {result['ci'][1]:+.3f}), DeLong z = "
         f"{result['z']:.2f}, p = {result['p_value']:.4f}"

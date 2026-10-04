@@ -269,8 +269,18 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _safe_console() -> None:
+    """Never crash on a console that cannot show characters such as "≥" or "→"."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="backslashreplace")  # type: ignore[union-attr]
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     hide_library_notices()
+    _safe_console()
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "fetch-model":

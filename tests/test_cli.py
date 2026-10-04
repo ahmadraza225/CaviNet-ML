@@ -74,7 +74,7 @@ def test_toolkit_errors_are_one_line_with_exit_code_2(tmp_path, capsys):
     )
     assert capsys.readouterr().err.startswith("error: ")
     bad = tmp_path / "bad.yaml"
-    bad.write_text("batch: {sizes: 4}\n")
+    bad.write_text("batch: {sizes: 4}\n", encoding="utf-8")
     code = main(["train", "--fold", "0", "--config", str(bad), "--work", str(tmp_path)])
     assert code == EXIT_ERROR and "unknown setting" in capsys.readouterr().err
 

@@ -253,7 +253,7 @@ def indexed(tmp_path_factory):
 def test_manifest_has_every_patient_and_column(indexed):
     root, summary, rows = indexed
     assert len(rows) == 10 and summary["counts"]["tb"] == 7 and summary["counts"]["ntm"] == 3
-    with (root / "work" / "manifest.csv").open() as handle:
+    with (root / "work" / "manifest.csv").open(encoding="utf-8") as handle:
         assert handle.readline().strip().split(",") == list(MANIFEST_COLUMNS)
     assert read_summary(root / "work" / "manifest.csv")["dataset"]["synthetic"] is True
     tb = rows["TB_001"]
@@ -305,7 +305,7 @@ def test_scan_details_notes_unusual_scans(tmp_path):
 
     folder = tmp_path / "TB" / "TB_001"
     write_series(folder, chest_volume(depth=20, size=16), spacing=(0.7, 0.7, 6.0))
-    (folder / "notes.txt").write_text("not dicom")
+    (folder / "notes.txt").write_text("not dicom", encoding="utf-8")
     with FolderSource(tmp_path) as source:
         case = source.layout().cases[0]
         assert isinstance(case, CaseEntry)

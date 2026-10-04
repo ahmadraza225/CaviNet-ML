@@ -77,13 +77,13 @@ def read_qc(path: Path) -> dict[str, dict[str, str]]:
     """Latest QC row per patient."""
     if not path.is_file():
         return {}
-    with path.open(newline="") as handle:
+    with path.open(newline="", encoding="utf-8") as handle:
         return {row["case_id"]: row for row in csv.DictReader(handle)}
 
 
 def _write_qc(rows: dict[str, dict[str, Any]], path: Path) -> None:
     temporary = path.with_suffix(".csv.tmp")
-    with temporary.open("w", newline="") as handle:
+    with temporary.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=QC_COLUMNS)
         writer.writeheader()
         for case_id in sorted(rows, key=_order):
@@ -100,7 +100,7 @@ def check_cache_config(cache_dir: Path, config: PreprocessingConfig) -> None:
     """The cache must hold volumes made with one set of section 11.1 parameters."""
     path = cache_dir / CONFIG_FILE
     if path.is_file():
-        saved = json.loads(path.read_text())
+        saved = json.loads(path.read_text(encoding="utf-8"))
         if saved != config.to_dict():
             raise DatasetError(
                 f"{cache_dir} holds volumes made with different preprocessing parameters "
@@ -108,14 +108,14 @@ def check_cache_config(cache_dir: Path, config: PreprocessingConfig) -> None:
             )
     else:
         cache_dir.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(config.to_dict(), indent=2) + "\n")
+        path.write_text(json.dumps(config.to_dict(), indent=2) + "\n", encoding="utf-8")
 
 
 def cache_config(cache_dir: Path) -> PreprocessingConfig:
     path = cache_dir / CONFIG_FILE
     if not path.is_file():
         raise DatasetError(f"{path} not found; run `cavinet-ml preprocess` first.")
-    return PreprocessingConfig.from_dict(json.loads(path.read_text()))
+    return PreprocessingConfig.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
 
 def qc_image(volume: np.ndarray, path: Path) -> None:
@@ -332,7 +332,7 @@ def preprocess_dataset(
 
     qc_path.parent.mkdir(parents=True, exist_ok=True)
     new_file = not qc_path.is_file()
-    with qc_path.open("a", newline="") as handle:
+    with qc_path.open("a", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=QC_COLUMNS)
         if new_file:
             writer.writeheader()

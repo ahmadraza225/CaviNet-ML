@@ -23,7 +23,7 @@ def write_model_card(bundle_path: Path) -> Path:
     info = metadata(load_bundle(bundle_path, mmap=True))
     info["file_sha256"] = file_sha256(bundle_path)
     card = bundle_path.with_name("model_card.json")
-    card.write_text(json.dumps(info, indent=2, default=str) + "\n")
+    card.write_text(json.dumps(info, indent=2, default=str) + "\n", encoding="utf-8")
     return card
 
 

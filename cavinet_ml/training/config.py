@@ -240,7 +240,7 @@ def load_config(path: Path | str) -> TrainingConfig:
     if not path.is_file():
         raise ConfigError(f"{path} not found")
     try:
-        values = yaml.safe_load(path.read_text())
+        values = yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
         raise ConfigError(f"{path} is not valid YAML: {error}") from error
     return config_from_dict(values or {})

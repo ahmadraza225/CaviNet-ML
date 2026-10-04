@@ -102,7 +102,7 @@ def test_missing_or_broken_yaml_is_refused(tmp_path):
     with pytest.raises(ConfigError, match="not found"):
         load_config(tmp_path / "none.yaml")
     bad = tmp_path / "bad.yaml"
-    bad.write_text("batch: [unclosed")
+    bad.write_text("batch: [unclosed", encoding="utf-8")
     with pytest.raises(ConfigError, match="not valid YAML"):
         load_config(bad)
 

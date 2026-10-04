@@ -35,7 +35,7 @@ def read_oof(runs_dir: Path, n_folds: int) -> list[dict[str, Any]]:
         path = runs_dir / f"fold_{fold}" / "oof.csv"
         if not path.is_file():
             raise TrainingError(f"{path} not found; train fold {fold} first.")
-        with path.open(newline="") as handle:
+        with path.open(newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle):
                 rows.append(
                     {
@@ -102,8 +102,8 @@ def calibrate(
         "youden_threshold": youden_threshold(labels, calibrated),
     }
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(result, indent=2) + "\n")
-    with oof_predictions_path(out).open("w", newline="") as handle:
+    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    with oof_predictions_path(out).open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle, fieldnames=["case_id", "fold", "label", "logit", "probability"]
         )
@@ -123,4 +123,4 @@ def calibrate(
 def read_calibration(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise TrainingError(f"{path} not found; run `cavinet-ml calibrate` first.")
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))

@@ -168,7 +168,7 @@ def test_split_dataset_excludes_failed_and_unlisted_patients_and_locks_the_file(
     assert len(splits.test) == 1 and splits.n_folds == 2 and len(splits.dev) == 6
     assert set(splits.train_ids(0)) == set(splits.folds[1])
     assert splits.fold_of(splits.folds[1][0]) == 1 and splits.fold_of(splits.test[0]) is None
-    document = json.loads(out.read_text())
+    document = json.loads(out.read_text(encoding="utf-8"))
     assert document["seed"] == 42 and document["stratify_by"] == [
         "label",
         "sex",
@@ -183,7 +183,7 @@ def test_split_dataset_excludes_failed_and_unlisted_patients_and_locks_the_file(
 def test_split_needs_every_patient_preprocessed(tmp_path, dataset):
     work = dataset / "work"
     qc = tmp_path / "qc.csv"
-    qc.write_text(",".join(QC_COLUMNS) + "\nTB_001,ok\n")
+    qc.write_text(",".join(QC_COLUMNS) + "\nTB_001,ok\n", encoding="utf-8")
     with pytest.raises(DatasetError, match="not preprocessed yet"):
         split_dataset(work / "manifest.csv", qc, tmp_path / "s.json", **QUIET)
     with pytest.raises(DatasetError, match="run `cavinet-ml preprocess` first"):
@@ -201,7 +201,8 @@ def test_load_splits_rejects_overlaps(tmp_path):
                 "test": ["TB_001"],
                 "folds": [["TB_001"], ["TB_002"]],
             }
-        )
+        ),
+        encoding="utf-8",
     )
     with pytest.raises(DatasetError, match="more than one split"):
         load_splits(path)

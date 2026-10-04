@@ -303,7 +303,7 @@ def _run(ctx: _Context, batch_size: int, restart_state: dict[str, Any] | None) -
             )
             if config.logging.csv:
                 new = not log_path.is_file()
-                with log_path.open("a", newline="") as handle:
+                with log_path.open("a", newline="", encoding="utf-8") as handle:
                     out = csv.DictWriter(handle, fieldnames=LOG_COLUMNS)
                     if new:
                         out.writeheader()
@@ -345,7 +345,7 @@ def _finish(ctx: _Context, initialisation: str, batch_size: int, stopped_early: 
     model.to(ctx.device)
     loader = _loader(ctx, ctx.val_ids, batch_size, False, 0)
     logits, labels = predict(model, loader, ctx.device, ctx.amp)
-    with (ctx.run_dir / "oof.csv").open("w", newline="") as handle:
+    with (ctx.run_dir / "oof.csv").open("w", newline="", encoding="utf-8") as handle:
         out = csv.writer(handle)
         out.writerow(["case_id", "fold", "label", "logit"])
         for case_id, label, logit in zip(ctx.val_ids, labels, logits, strict=True):
@@ -378,7 +378,7 @@ def _finish(ctx: _Context, initialisation: str, batch_size: int, stopped_early: 
         "stopped_early": result.stopped_early,
         "batch_size_used": result.batch_size,
     }
-    (ctx.run_dir / "run.json").write_text(json.dumps(run, indent=2) + "\n")
+    (ctx.run_dir / "run.json").write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8")
     ctx.log(
         f"Fold {ctx.fold} finished: best val AUC {result.best_val_auc:.4f} at epoch "
         f"{result.best_epoch + 1} of {result.epochs_run}. "
@@ -429,7 +429,7 @@ def train_fold(
                 f"{run_dir} holds a run with a different configuration or split; "
                 "use --restart to train this fold again from the start."
             )
-    (run_dir / "config.yaml").write_text(config.to_yaml())
+    (run_dir / "config.yaml").write_text(config.to_yaml(), encoding="utf-8")
     labels = {c: rows[c]["label"] for c in train_ids + val_ids}
     n_tb = sum(labels[c] == 1 for c in train_ids)
     if n_tb == 0 or n_tb == len(train_ids):

@@ -263,5 +263,5 @@ def write_report(
     path: Path, *, data: dict[str, Any], dev: dict[str, Any], test: dict[str, Any] | None
 ) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render(path, data=data, dev=dev, test=test))
+    path.write_text(render(path, data=data, dev=dev, test=test), encoding="utf-8")
     return path

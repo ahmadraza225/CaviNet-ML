@@ -59,7 +59,7 @@ def test_fetch_builds_the_demo_model_when_no_url_is_set(tmp_path):
     out = tmp_path / "models" / "cavinet_model.pth"
     assert fetch_model(out, build_demo=fast_demo, log=lambda m: None) == "demo"
     assert load_bundle(out)["is_demo"] is True
-    card = json.loads((out.parent / "model_card.json").read_text())
+    card = json.loads((out.parent / "model_card.json").read_text(encoding="utf-8"))
     assert card["is_demo"] is True and card["file_sha256"] == file_sha256(out)
     assert "fold_state_dicts" not in card
     assert fetch_model(out, build_demo=fast_demo, log=lambda m: None) == "kept"

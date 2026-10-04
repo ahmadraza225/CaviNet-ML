@@ -82,7 +82,7 @@ def write_manifest(rows: Iterable[dict[str, Any]], path: Path) -> str:
     """Write manifest.csv and return its SHA-256."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".csv.tmp")
-    with temporary.open("w", newline="") as handle:
+    with temporary.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=MANIFEST_COLUMNS, extrasaction="raise")
         writer.writeheader()
         for row in rows:
@@ -114,7 +114,7 @@ def read_manifest(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         raise FileNotFoundError(f"{path} not found; run `cavinet-ml index` first.")
     rows = []
-    with path.open(newline="") as handle:
+    with path.open(newline="", encoding="utf-8") as handle:
         for raw in csv.DictReader(handle):
             row: dict[str, Any] = dict(raw)
             row["label"] = int(raw["label"])
@@ -146,4 +146,4 @@ def summary_path(manifest_path: Path) -> Path:
 
 def read_summary(manifest_path: Path) -> dict[str, Any]:
     path = summary_path(manifest_path)
-    return json.loads(path.read_text()) if path.is_file() else {}
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}

@@ -84,16 +84,16 @@ def test_a_fold_trains_and_writes_everything(trained):
     ):
         assert (run / name).is_file(), name
     assert any((run / "tensorboard").iterdir())
-    info = json.loads((run / "run.json").read_text())
+    info = json.loads((run / "run.json").read_text(encoding="utf-8"))
     assert info["initialisation"] == "trained from scratch" and info["device"] == "cpu"
     assert info["config_sha256"] == cfg.sha256() and info["epochs_run"] == 2
     n_tb, n = info["train_patients"]["tb"], info["train_patients"]["n"]
     assert info["pos_weight"] == pytest.approx((n - n_tb) / n_tb, abs=1e-6)  # #NTM / #TB
-    with (run / "train_log.csv").open() as handle:
+    with (run / "train_log.csv").open(encoding="utf-8") as handle:
         log = list(csv.DictReader(handle))
     assert [int(r["epoch"]) for r in log] == [0, 1]
     assert float(log[0]["lr"]) == pytest.approx(1e-4 / 3)  # first warm-up epoch
-    with (run / "oof.csv").open() as handle:
+    with (run / "oof.csv").open(encoding="utf-8") as handle:
         oof = list(csv.DictReader(handle))
     from cavinet_ml.dataset.split import load_splits
 
@@ -151,7 +151,7 @@ def test_training_resumes_after_an_interruption(tmp_path, monkeypatch):
     )
     assert any("resuming at epoch 2" in m for m in messages)
     assert result.epochs_run == 3
-    with (ws.runs / "fold_0" / "train_log.csv").open() as handle:
+    with (ws.runs / "fold_0" / "train_log.csv").open(encoding="utf-8") as handle:
         assert [int(r["epoch"]) for r in csv.DictReader(handle)] == [0, 1, 2]
     restarted = train(ws, 0, cfg, restart=True)
     assert restarted.epochs_run == 3
@@ -217,7 +217,10 @@ def test_early_stopping_after_patience(tmp_path, monkeypatch):
 def test_calibrate_fits_the_temperature_on_out_of_fold_logits(trained):
     ws, _, _ = trained
     result = calibrate(runs_dir=ws.runs, splits_path=ws.splits, out=ws.calibration, **QUIET)
-    with (ws.runs / "fold_0" / "oof.csv").open() as a, (ws.runs / "fold_1" / "oof.csv").open() as b:
+    with (
+        (ws.runs / "fold_0" / "oof.csv").open(encoding="utf-8") as a,
+        (ws.runs / "fold_1" / "oof.csv").open(encoding="utf-8") as b,
+    ):
         rows = list(csv.DictReader(a)) + list(csv.DictReader(b))
     expected = fit_temperature([float(r["logit"]) for r in rows], [int(r["label"]) for r in rows])
     assert result["temperature"] == pytest.approx(expected)
@@ -226,7 +229,10 @@ def test_calibrate_fits_the_temperature_on_out_of_fold_logits(trained):
     # Temperature scaling minimises the negative log-likelihood (ECE may move either way).
     assert result["oof"]["nll"] <= result["oof"]["nll_before"] + 1e-6
     assert ws.oof_predictions.is_file()
-    assert json.loads(ws.calibration.read_text())["temperature"] == result["temperature"]
+    assert (
+        json.loads(ws.calibration.read_text(encoding="utf-8"))["temperature"]
+        == result["temperature"]
+    )
 
 
 def test_calibrate_refuses_incomplete_out_of_fold_predictions(trained, tmp_path):
@@ -234,10 +240,14 @@ def test_calibrate_refuses_incomplete_out_of_fold_predictions(trained, tmp_path)
     broken = tmp_path / "runs"
     for fold in (0, 1):
         (broken / f"fold_{fold}").mkdir(parents=True)
-    (broken / "fold_0" / "oof.csv").write_text((ws.runs / "fold_0" / "oof.csv").read_text())
+    (broken / "fold_0" / "oof.csv").write_text(
+        (ws.runs / "fold_0" / "oof.csv").read_text(encoding="utf-8")
+    )
     with pytest.raises(TrainingError, match="train fold 1 first"):
         calibrate(runs_dir=broken, splits_path=ws.splits, out=tmp_path / "c.json", **QUIET)
-    (broken / "fold_1" / "oof.csv").write_text((ws.runs / "fold_0" / "oof.csv").read_text())
+    (broken / "fold_1" / "oof.csv").write_text(
+        (ws.runs / "fold_0" / "oof.csv").read_text(encoding="utf-8")
+    )
     with pytest.raises(TrainingError, match="do not match the development folds"):
         calibrate(runs_dir=broken, splits_path=ws.splits, out=tmp_path / "c.json", **QUIET)
 
@@ -282,9 +292,9 @@ def test_exported_bundle_follows_section_11_6_and_loads_in_the_app(exported):
     ensemble = Ensemble(bundle)
     prediction = ensemble.predict(np.load(ws.cache / "TB_001.npy"))
     assert prediction.decision.predicted_class in ("TB", "NTM") and len(prediction.fold_logits) == 2
-    card = json.loads((ws.bundle.parent / "model_card.json").read_text())
+    card = json.loads((ws.bundle.parent / "model_card.json").read_text(encoding="utf-8"))
     assert card["file_sha256"] and "fold_state_dicts" not in card
-    text = ws.model_card_md.read_text()
+    text = ws.model_card_md.read_text(encoding="utf-8")
     for heading in (
         "## Intended use",
         "## Training data",
@@ -323,7 +333,9 @@ def test_locked_test_metrics_are_added_without_changing_the_weights(exported, tm
     assert after["metrics"]["locked_test"]["auc"] == 0.8
     assert after["metrics"]["locked_test"]["npv"] is None  # NaN (undefined) becomes None
     assert weights_sha256(after["fold_state_dicts"]) == before
-    assert "Evaluated once on 10 patients" in (tmp_path / "MODEL_CARD.md").read_text()
+    assert "Evaluated once on 10 patients" in (tmp_path / "MODEL_CARD.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_export_needs_every_fold_finished(trained, tmp_path):

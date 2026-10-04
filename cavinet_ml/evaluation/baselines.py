@@ -173,7 +173,7 @@ def run_baseline(
     if kind == "metadata":
         summary["interpretation"] = shortcut_interpretation(auc["value"], auc["ci"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    with (out_dir / f"{kind}_oof.csv").open("w", newline="") as handle:
+    with (out_dir / f"{kind}_oof.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["case_id", "fold", "label", "probability"])
         for case_id in ids:
@@ -185,7 +185,7 @@ def run_baseline(
                     f"{predictions[case_id]:.6f}",
                 ]
             )
-    (out_dir / f"{kind}.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (out_dir / f"{kind}.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     log(
         f"{KINDS[kind]}: out-of-fold AUC {auc['value']:.4f} (95% CI {auc['ci'][0]:.3f}-"
         f"{auc['ci'][1]:.3f}) on {len(ids)} development patients; per fold "
@@ -215,5 +215,5 @@ def read_oof_predictions(path: Path, column: str = "probability") -> dict[str, t
     """{case_id: (label, score)} from an out-of-fold CSV."""
     if not path.is_file():
         raise FileNotFoundError(f"{path} not found")
-    with path.open(newline="") as handle:
+    with path.open(newline="", encoding="utf-8") as handle:
         return {r["case_id"]: (int(r["label"]), float(r[column])) for r in csv.DictReader(handle)}

@@ -104,14 +104,15 @@ def make_workspace(
     rows = manifest_rows(n_tb, n_ntm)
     write_manifest(rows, ws.manifest)
     summary_path(ws.manifest).write_text(
-        json.dumps({"dataset": {"path": str(root), "kind": "folder", "synthetic": synthetic}})
+        json.dumps({"dataset": {"path": str(root), "kind": "folder", "synthetic": synthetic}}),
+        encoding="utf-8",
     )
     check_cache_config(ws.cache, PreprocessingConfig(output_size=(size, size, size)))
     rng = np.random.default_rng(1)
     for row in rows:
         np.save(cache_file(ws.cache, row["case_id"]), volume(row["label"], rng, size))
     ws.qc_report.parent.mkdir(parents=True, exist_ok=True)
-    with ws.qc_report.open("w", newline="") as handle:
+    with ws.qc_report.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=QC_COLUMNS)
         writer.writeheader()
         for row in rows:

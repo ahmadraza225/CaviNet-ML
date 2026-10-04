@@ -188,7 +188,7 @@ def split_dataset(
         "excluded": dict(sorted(excluded.items(), key=lambda kv: _order(kv[0]))),
     }
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(document, indent=1) + "\n")
+    out.write_text(json.dumps(document, indent=1) + "\n", encoding="utf-8")
     counts = document["counts"]
     log(
         f"Wrote {out}: test {counts['test']['n']} ({counts['test']['tb']} TB, "
@@ -206,7 +206,7 @@ def _order(case_id: str) -> tuple[int, int]:
 def load_splits(path: Path) -> Splits:
     if not path.is_file():
         raise DatasetError(f"{path} not found; run `cavinet-ml split` first.")
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("format") != FORMAT:
         raise DatasetError(f"{path}: unsupported splits format {data.get('format')!r}")
     test, folds = list(data["test"]), [list(f) for f in data["folds"]]

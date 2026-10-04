@@ -226,5 +226,5 @@ def render(card: dict[str, Any]) -> str:
 
 def write_model_card_md(card: dict[str, Any], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render(card))
+    path.write_text(render(card), encoding="utf-8")
     return path

@@ -316,7 +316,7 @@ def build_manifest(
         },
         "seconds": round(time.perf_counter() - started, 1),
     }
-    summary_path(out).write_text(json.dumps(summary, indent=2) + "\n")
+    summary_path(out).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     counts = summary["counts"]
     log(
         f"Wrote {out} ({counts['patients']} patients: {counts['tb']} TB, {counts['ntm']} NTM) in "
