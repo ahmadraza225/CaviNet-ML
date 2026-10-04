@@ -21,7 +21,6 @@ MANIFEST_COLUMNS = (
     "age",
     "sex",  # male / female
     "age_band",  # <40, 40-59, >=60 (section 11.3)
-    "clinical_source",  # index, dicom (age/sex from the DICOM header only) or none
     "index_status",  # ok, duplicate (listed twice with different values) or missing
     *SYMPTOM_COLUMNS,  # 1 present, 0 absent, blank unknown
     "symptoms_known",

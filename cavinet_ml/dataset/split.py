@@ -5,7 +5,8 @@
   rounded by largest remainder so the total is exactly 20%.
 - The remaining 80%: 5 folds with the same stratification (each stratum is dealt across the
   folds in turn, so fold sizes differ by at most one).
-- One scan per patient; patients whose preprocessing failed are excluded (with the reason).
+- One scan per patient. Excluded, with the reason: patients whose preprocessing failed, and
+  patients without exactly one row in PatientIndex.xlsx (their label cannot be cross-checked).
 - splits.json holds case IDs only and is committed to the repository. Once written it is not
   replaced without --force: the test set must stay locked.
 """
@@ -141,11 +142,19 @@ def split_dataset(
             f"{len(pending)} patients are not preprocessed yet ({', '.join(pending[:10])}); "
             "finish `cavinet-ml preprocess` before splitting."
         )
-    excluded = {
-        r["case_id"]: f"preprocessing failed: {qc[r['case_id']]['error']}"
-        for r in rows
-        if qc[r["case_id"]]["status"] != "ok"
-    }
+    excluded: dict[str, str] = {}
+    for r in rows:
+        if r["index_status"] != "ok":
+            # Section 7.3: the label is cross-checked with PatientIndex.xlsx; without one clear
+            # row it cannot be, and the clinical baseline would lack this patient (H2 compares
+            # both models on the same patients).
+            excluded[r["case_id"]] = (
+                "listed more than once in PatientIndex.xlsx with different values"
+                if r["index_status"] == "duplicate"
+                else "not listed in PatientIndex.xlsx"
+            )
+        elif qc[r["case_id"]]["status"] != "ok":
+            excluded[r["case_id"]] = f"preprocessing failed: {qc[r['case_id']]['error']}"
     usable = [r for r in rows if r["case_id"] not in excluded]
     test, folds = make_splits(usable, seed=seed, test_fraction=test_fraction, n_folds=n_folds)
 

@@ -3,8 +3,9 @@
 For every patient folder the DICOM headers are read (pixel data is skipped, nothing is
 extracted to disk) to find the series with the most slices and its scan details. The label
 comes from the folder (TB = 1, NTM = 0) and is cross-checked with the sheet the patient is
-listed in. Patients whose index row is missing or ambiguous keep their scan; their age and
-sex are taken from the DICOM header when present and their symptoms are left unknown.
+listed in. Patients whose index row is missing or ambiguous are kept in the manifest with
+their clinical values blank; `cavinet-ml split` leaves them out, because their label cannot be
+cross-checked (section 7.3).
 """
 
 import json
@@ -194,7 +195,6 @@ def manifest_row(case: CaseEntry, details: dict[str, Any], index: PatientIndex) 
     if record is not None:
         row.update(
             index_status="ok",
-            clinical_source="index",
             sex=record.sex,
             age=record.age,
             symptoms_known=True,
@@ -217,17 +217,13 @@ def manifest_row(case: CaseEntry, details: dict[str, Any], index: PatientIndex) 
             if status == "duplicate"
             else "not listed in PatientIndex.xlsx"
         )
-        sex, age = details.get("dicom_sex"), details.get("dicom_age")
         row.update(
             index_status=status,
-            clinical_source="dicom" if (sex or age is not None) else "none",
-            sex=sex,
-            age=age,
+            sex=None,
+            age=None,
             symptoms_known=False,
             **{column: None for column in SYMPTOM_COLUMNS},
         )
-        if sex or age is not None:
-            notes.append("age and sex taken from the DICOM header; symptoms unknown")
     row["age_band"] = age_band(row["age"])
     row["manufacturer_group"] = manufacturer_group(row.get("manufacturer"))
     row["notes"] = "; ".join(notes)
