@@ -112,8 +112,17 @@ def _ordered(labels, *score_sets) -> tuple[np.ndarray, int]:
     return np.vstack([np.asarray(s, dtype=np.float64)[order] for s in score_sets]), int(y.sum())
 
 
+TOO_FEW = "too few cases of one class (at least 2 TB and 2 NTM are needed)"
+
+
+def _enough(stacked: np.ndarray, m: int) -> bool:
+    return m >= 2 and stacked.shape[1] - m >= 2
+
+
 def delong_ci(labels, scores, alpha: float = 0.05) -> dict[str, Any]:
     stacked, m = _ordered(labels, scores)
+    if not _enough(stacked, m):
+        return {"auc": roc_auc(labels, scores), "se": None, "ci": None, "note": TOO_FEW}
     aucs, cov = _fast_delong(stacked, m)
     se = float(np.sqrt(cov[0, 0]))
     z = norm.ppf(1 - alpha / 2)
@@ -127,6 +136,20 @@ def delong_ci(labels, scores, alpha: float = 0.05) -> dict[str, Any]:
 def delong_test(labels, scores_a, scores_b, alpha: float = 0.05) -> dict[str, Any]:
     """Two-sided DeLong test of AUC(a) = AUC(b) on the same patients."""
     stacked, m = _ordered(labels, scores_a, scores_b)
+    if not _enough(stacked, m):
+        auc_a, auc_b = roc_auc(labels, scores_a), roc_auc(labels, scores_b)
+        return {
+            "auc_a": auc_a,
+            "auc_b": auc_b,
+            "difference": auc_a - auc_b,
+            "se": None,
+            "z": None,
+            "p_value": None,
+            "ci": None,
+            "n": int(stacked.shape[1]),
+            "n_tb": m,
+            "note": TOO_FEW,
+        }
     aucs, cov = _fast_delong(stacked, m)
     variance = float(cov[0, 0] + cov[1, 1] - 2 * cov[0, 1])
     difference = float(aucs[0] - aucs[1])

@@ -169,7 +169,8 @@ def export_bundle(
         f"Wrote {out} ({out.stat().st_size / 1e6:.0f} MB, {len(states)} folds, "
         f"{'DEMO' if is_demo else 'real'}), {card}"
         + (f" and {model_card_md}" if model_card_md else "")
-        + f". Check: it loads with weights_only=True and gives p(TB) = {check:.3f} for {splits.dev[0]}."
+        + f". Check: it loads with weights_only=True and gives p(TB) = {check:.3f} "
+        f"for {splits.dev[0]}."
     )
     return out
 

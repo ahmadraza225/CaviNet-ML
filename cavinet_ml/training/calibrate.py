@@ -112,7 +112,8 @@ def calibrate(
     fold_aucs = ", ".join(f"{f['auc']:.3f}" for f in per_fold)
     log(
         f"Temperature {temperature:.4f} fitted on {labels.size} out-of-fold predictions. "
-        f"Pooled out-of-fold AUC {auc['value']:.4f} (95% CI {auc['ci'][0]:.3f}-{auc['ci'][1]:.3f}); "
+        f"Pooled out-of-fold AUC {auc['value']:.4f} "
+        f"(95% CI {auc['ci'][0]:.3f}-{auc['ci'][1]:.3f}); "
         f"per fold {fold_aucs}. "
         f"ECE {result['oof']['ece_before']:.3f} → {result['oof']['ece']:.3f}. Written to {out}."
     )

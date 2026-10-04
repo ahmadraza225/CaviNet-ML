@@ -158,6 +158,9 @@ def _init_worker(
 
     hide_library_notices()
     logging.getLogger("lungmask").setLevel(logging.WARNING)  # no per-scan chatter
+    import SimpleITK as sitk
+
+    sitk.ProcessObject_SetGlobalWarningDisplay(False)  # failures are reported in the QC report
     torch.set_num_threads(max(1, threads))
     segmenter = None
     if weights:

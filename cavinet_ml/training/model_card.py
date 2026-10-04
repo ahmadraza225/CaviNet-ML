@@ -58,6 +58,8 @@ def render(card: dict[str, Any]) -> str:
             "numbers say nothing about real patients.",
             "",
         ]
+    kind = "Demo (synthetic data)" if card.get("is_demo") else "Trained on the real dataset"
+    size = " × ".join(str(v) for v in pre.get("output_size") or [])
     lines += [
         "## Model details",
         "",
@@ -66,14 +68,15 @@ def render(card: dict[str, Any]) -> str:
         f"| Name | {card.get('model_name')} |",
         f"| Version | {card.get('model_version', '—')} |",
         f"| Trained | {card.get('created_at')} |",
-        f"| Type | {'Demo (synthetic data)' if card.get('is_demo') else 'Trained on the real dataset'} |",
-        f"| Architecture | 3D ResNet-18 (MONAI {arch.get('name')}), 1 input channel, 1 output logit, "
-        f"dropout {arch.get('dropout')} before the final layer |",
-        f"| Ensemble | {card.get('folds')} cross-validation fold models; their logits are averaged |",
+        f"| Type | {kind} |",
+        f"| Architecture | 3D ResNet-18 (MONAI {arch.get('name')}), 1 input channel, "
+        f"1 output logit, dropout {arch.get('dropout')} before the final layer |",
+        f"| Ensemble | {card.get('folds')} cross-validation fold models; logits averaged |",
         f"| Initialisation | {card.get('initialisation', '—')} |",
         f"| Parameters per fold | {card.get('parameters_per_fold', 0):,} |",
         f"| Code version (git) | `{card.get('git_commit')}` |",
-        f"| File | `{card.get('file_name', 'cavinet_model.pth')}`, SHA-256 `{card.get('file_sha256', '—')}` |",
+        f"| File | `{card.get('file_name', 'cavinet_model.pth')}`, "
+        f"SHA-256 `{card.get('file_sha256', '—')}` |",
         f"| Weights SHA-256 | `{card.get('weights_sha256', '—')}` |",
         "",
         "## Intended use",
@@ -100,9 +103,9 @@ def render(card: dict[str, Any]) -> str:
         f"- Dataset: {metrics.get('dataset', '—')}",
         f"- Patients in the manifest: {data.get('patients', '—')}; excluded before splitting: "
         f"{data.get('excluded', '—')} (reasons in splits.json).",
-        f"- Development set: {data.get('dev', '—')} patients in {card.get('folds')} folds; locked test "
-        f"set: {data.get('test', '—')} patients (20%, stratified by label, sex, age band and scanner "
-        "manufacturer, seed 42).",
+        f"- Development set: {data.get('dev', '—')} patients in {card.get('folds')} folds; "
+        f"locked test set: {data.get('test', '—')} patients (20%, stratified by label, sex, "
+        "age band and scanner manufacturer, seed 42).",
         f"- manifest.csv SHA-256 `{card.get('data_manifest_sha256')}`; splits.json SHA-256 "
         f"`{card.get('splits_sha256', '—')}`.",
         "",
@@ -110,11 +113,12 @@ def render(card: dict[str, Any]) -> str:
         "",
         "Identical in training and in the application (stored in the model file):",
         "",
-        f"- Clip below {pre.get('hu_floor')} HU; lung mask with lungmask {pre.get('lungmask_model')} "
-        f"(fallback to the body outline below {pre.get('min_lung_volume_ml')} mL, recorded as a warning).",
-        f"- Resample to {pre.get('target_spacing_mm')} mm; crop to the lungs + {pre.get('crop_margin_mm')} "
-        f"mm; lung window {pre.get('window_hu')} HU scaled to 0-1; resize to "
-        f"{' × '.join(str(v) for v in pre.get('output_size') or [])} voxels ({pre.get('output_dtype')}).",
+        f"- Clip below {pre.get('hu_floor')} HU; lung mask with lungmask "
+        f"{pre.get('lungmask_model')} (fallback to the body outline below "
+        f"{pre.get('min_lung_volume_ml')} mL, recorded as a warning).",
+        f"- Resample to {pre.get('target_spacing_mm')} mm; crop to the lungs + "
+        f"{pre.get('crop_margin_mm')} mm; lung window {pre.get('window_hu')} HU scaled to 0-1; "
+        f"resize to {size} voxels ({pre.get('output_dtype')}).",
         "",
         "## Training (section 11.4)",
         "",
@@ -122,13 +126,15 @@ def render(card: dict[str, Any]) -> str:
     config = training.get("config") or {}
     if config:
         aug = config.get("augmentation", {})
+        opt = config["optimizer"]
         lines += [
-            f"- BCE with logits, TB positive, pos_weight = #NTM / #TB of each training fold; AdamW "
-            f"(lr {config['optimizer']['learning_rate']}, weight decay {config['optimizer']['weight_decay']}), "
+            "- BCE with logits, TB positive, pos_weight = #NTM / #TB of each training fold; "
+            f"AdamW (lr {opt['learning_rate']}, weight decay {opt['weight_decay']}), "
             f"{config['schedule']['warmup_epochs']} warm-up epochs then cosine.",
-            f"- Up to {config['epochs']['max']} epochs, early stopping on validation AUC (patience "
-            f"{config['epochs']['patience']}), best checkpoint kept; batch {config['batch']['size']} "
-            f"(effective {config['batch']['effective_size']}), mixed precision on the GPU.",
+            f"- Up to {config['epochs']['max']} epochs, early stopping on validation AUC "
+            f"(patience {config['epochs']['patience']}), best checkpoint kept; batch "
+            f"{config['batch']['size']} (effective {config['batch']['effective_size']}), "
+            "mixed precision on the GPU.",
             f"- Augmentation: left-right flip p {aug.get('flip_left_right_p')}, rotation ±"
             f"{aug.get('rotate_degrees')}°, scale {aug.get('scale')}, translation ±"
             f"{aug.get('translate_voxels')} voxels, intensity ±{_pct(aug.get('intensity_scale'))}, "
@@ -150,9 +156,10 @@ def render(card: dict[str, Any]) -> str:
     lines += [
         "## Calibration (section 11.5)",
         "",
-        f"Temperature scaling fitted on the out-of-fold logits: T = {_num(card.get('temperature'), 4)}. "
-        f"Expected calibration error {_num(oof.get('ece_before'))} before and {_num(oof.get('ece'))} "
-        f"after; Brier score {_num(oof.get('brier'))}.",
+        "Temperature scaling fitted on the out-of-fold logits: "
+        f"T = {_num(card.get('temperature'), 4)}. Expected calibration error "
+        f"{_num(oof.get('ece_before'))} before and {_num(oof.get('ece'))} after; "
+        f"Brier score {_num(oof.get('brier'))}.",
         "",
         "## Performance",
         "",
@@ -174,8 +181,9 @@ def render(card: dict[str, Any]) -> str:
     if test:
         ci = test.get("ci") or {}
         lines += [
-            f"Evaluated once on {test.get('n')} patients ({test.get('n_tb')} TB, {test.get('n_ntm')} NTM) "
-            f"on {test.get('evaluated_at')}, at the application's threshold of 0.50:",
+            f"Evaluated once on {test.get('n')} patients ({test.get('n_tb')} TB, "
+            f"{test.get('n_ntm')} NTM) on {test.get('evaluated_at')}, at the application's "
+            "threshold of 0.50:",
             "",
             "| Metric | Value (95% CI) |",
             "|---|---|",
@@ -203,7 +211,8 @@ def render(card: dict[str, Any]) -> str:
         "",
         "## Ethical considerations",
         "",
-        "- Trained on public, anonymised data (CC BY 4.0); no patient data from Pakistani hospitals.",
+        "- Trained on public, anonymised data (CC BY 4.0); no patient data from Pakistani "
+        "hospitals.",
         "- Uploaded scans are de-identified on arrival; every result carries the disclaimer.",
         "- All results, including unfavourable ones, are reported honestly.",
         "",

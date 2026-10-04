@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cavinet-ml"
-version = "0.5.0"
+version = "0.6.0"
 description = "CaviNet AI pipeline: preprocessing, model, inference, training and evaluation"
 requires-python = ">=3.11"
 # PyTorch: install the CPU build first where possible (see the Makefile and Dockerfile):
@@ -21,6 +21,17 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "pydicom>=3.0,<4"]
+# The training toolkit (cavinet-ml index ... evaluate). Not needed by the application.
+train = [
+  "pydicom>=3.0,<4",
+  "openpyxl>=3.1",
+  "pandas>=2",
+  "scikit-learn>=1.4",
+  "pyyaml>=6",
+  "matplotlib>=3.8",
+  "tensorboard>=2.15",
+  "huggingface_hub>=0.20",  # MedicalNet weights (via MONAI)
+]
 
 [project.scripts]
 cavinet-ml = "cavinet_ml.cli:main"
@@ -31,6 +42,8 @@ include = ["cavinet_ml*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+# Training tests write model checkpoints; keep temporary folders only for failed tests.
+tmp_path_retention_policy = "failed"
 filterwarnings = [
   # MONAI imports a deprecated torch.jit helper; not ours to fix.
   "ignore:`torch.jit.interface` is deprecated:FutureWarning",

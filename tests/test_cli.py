@@ -42,3 +42,44 @@ def test_console_script():
         [_console_script(), "--version"], capture_output=True, text=True, check=True
     )
     assert result.stdout.strip() == f"cavinet-ml {__version__}"
+
+
+TOOLKIT_COMMANDS = (
+    "index",
+    "preprocess",
+    "split",
+    "train",
+    "calibrate",
+    "export",
+    "evaluate",
+    "baseline",
+    "shortcut-check",
+    "compare",
+    "synthetic-dataset",
+)
+
+
+def test_help_lists_every_toolkit_command(capsys):
+    assert main([]) == 0
+    out = capsys.readouterr().out
+    for command in TOOLKIT_COMMANDS:
+        assert command in out
+
+
+def test_toolkit_errors_are_one_line_with_exit_code_2(tmp_path, capsys):
+    from cavinet_ml.cli import EXIT_ERROR
+
+    assert (
+        main(["split", "--work", str(tmp_path), "--splits", str(tmp_path / "s.json")]) == EXIT_ERROR
+    )
+    assert capsys.readouterr().err.startswith("error: ")
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("batch: {sizes: 4}\n")
+    code = main(["train", "--fold", "0", "--config", str(bad), "--work", str(tmp_path)])
+    assert code == EXIT_ERROR and "unknown setting" in capsys.readouterr().err
+
+
+def test_default_training_config_is_found():
+    from cavinet_ml.cli import default_config
+
+    assert default_config().name == "train.yaml" and default_config().is_file()
