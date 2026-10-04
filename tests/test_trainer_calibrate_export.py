@@ -276,6 +276,8 @@ def test_exported_bundle_follows_section_11_6_and_loads_in_the_app(exported):
     assert metrics["locked_test"] is None and 0 <= metrics["oof"]["auc"] <= 1
     assert "Synthetic" in metrics["dataset"]
     assert bundle["weights_sha256"] == weights_sha256(bundle["fold_state_dicts"])
+    # The application stores these in a PostgreSQL JSON column: no NaN or infinity.
+    json.dumps({k: v for k, v in bundle.items() if k != "fold_state_dicts"}, allow_nan=False)
     assert bundle["training"]["folds"][0]["epochs_run"] == 2
     ensemble = Ensemble(bundle)
     prediction = ensemble.predict(np.load(ws.cache / "TB_001.npy"))
@@ -307,6 +309,7 @@ def test_locked_test_metrics_are_added_without_changing_the_weights(exported, tm
             "auc_ci": [0.7, 0.9],
             "sensitivity": 0.7,
             "specificity": 0.75,
+            "npv": math.nan,
             "accuracy": 0.72,
             "n": 10,
             "n_tb": 6,
@@ -318,6 +321,7 @@ def test_locked_test_metrics_are_added_without_changing_the_weights(exported, tm
     )
     after = load_bundle(copy)
     assert after["metrics"]["locked_test"]["auc"] == 0.8
+    assert after["metrics"]["locked_test"]["npv"] is None  # NaN (undefined) becomes None
     assert weights_sha256(after["fold_state_dicts"]) == before
     assert "Evaluated once on 10 patients" in (tmp_path / "MODEL_CARD.md").read_text()
 
@@ -342,3 +346,16 @@ def test_nan_auc_does_not_crash_training(tmp_path, monkeypatch):
     monkeypatch.setattr(trainer, "roc_auc", lambda y, s: math.nan)
     result = train(ws, 0, config(epochs=1, size=4, effective_size=4))
     assert result.best_epoch == 0 and (ws.runs / "fold_0" / "best.pt").is_file()
+
+
+def test_json_safe_replaces_undefined_numbers():
+    from cavinet_ml.training.export import json_safe
+
+    value = {
+        "a": math.nan,
+        "b": [1.0, math.inf, np.float32(0.5)],
+        "c": {"d": np.int64(3)},
+        "e": "x",
+    }
+    assert json_safe(value) == {"a": None, "b": [1.0, None, 0.5], "c": {"d": 3}, "e": "x"}
+    assert json_safe(True) is True and json_safe(None) is None

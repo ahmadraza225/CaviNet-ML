@@ -11,6 +11,7 @@ always marked `is_demo`, so it can never pass for a real model.
 
 import hashlib
 import json
+import math
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,6 +48,24 @@ REAL_DATASET = (
 SYNTHETIC_DATASET = (
     "Synthetic look-alike of the Kaggle dataset (cavinet_ml.dataset.synthetic); no patient data."
 )
+
+
+def json_safe(value: Any) -> Any:
+    """Plain JSON values only: NaN and infinity become None (undefined, e.g. NPV when no
+    patient is predicted NTM). The application stores the metrics in a PostgreSQL JSON column,
+    which refuses NaN."""
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return value
+    if isinstance(value, int | float) or hasattr(value, "item"):
+        number = value.item() if hasattr(value, "item") else value
+        if isinstance(number, float) and not math.isfinite(number):
+            return None
+        return number
+    return value
 
 
 def weights_sha256(fold_state_dicts: list[dict[str, torch.Tensor]]) -> str:
@@ -125,40 +144,44 @@ def export_bundle(
         "confidence_bands": dict(DEFAULT_BANDS),
         "preprocessing": cache_config(cache_dir).to_dict(),
         "label_map": dict(LABEL_MAP),
-        "metrics": {
-            "dataset": SYNTHETIC_DATASET if synthetic else REAL_DATASET,
-            "oof": {
-                **calibration["oof"],
-                "n": calibration["n"],
-                "temperature": calibration["temperature"],
-            },
-            "youden_threshold_dev": calibration["youden_threshold"],
-            "locked_test": None,
-        },
+        "metrics": json_safe(
+            {
+                "dataset": SYNTHETIC_DATASET if synthetic else REAL_DATASET,
+                "oof": {
+                    **calibration["oof"],
+                    "n": calibration["n"],
+                    "temperature": calibration["temperature"],
+                },
+                "youden_threshold_dev": calibration["youden_threshold"],
+                "locked_test": None,
+            }
+        ),
         "data_manifest_sha256": file_sha256(manifest_path),
         "splits_sha256": file_sha256(splits_path),
         "weights_sha256": weights_sha256(states),
         "toolkit_version": __version__,
-        "training": {
-            "config": config.to_dict(),
-            "data": {
-                "patients": counts.get("patients"),
-                "excluded": counts.get("excluded"),
-                "dev": counts.get("dev", {}).get("n"),
-                "test": counts.get("test", {}).get("n"),
-            },
-            "folds": [
-                {
-                    "fold": r["fold"],
-                    "best_epoch": r["info"]["best_epoch"],
-                    "best_val_auc": r["info"]["best_val_auc"],
-                    "epochs_run": r["info"]["epochs_run"],
-                    "batch_size": r["info"]["batch_size_used"],
-                    "pos_weight": r["info"]["pos_weight"],
-                }
-                for r in runs
-            ],
-        },
+        "training": json_safe(
+            {
+                "config": config.to_dict(),
+                "data": {
+                    "patients": counts.get("patients"),
+                    "excluded": counts.get("excluded"),
+                    "dev": counts.get("dev", {}).get("n"),
+                    "test": counts.get("test", {}).get("n"),
+                },
+                "folds": [
+                    {
+                        "fold": r["fold"],
+                        "best_epoch": r["info"]["best_epoch"],
+                        "best_val_auc": r["info"]["best_val_auc"],
+                        "epochs_run": r["info"]["epochs_run"],
+                        "batch_size": r["info"]["batch_size_used"],
+                        "pos_weight": r["info"]["pos_weight"],
+                    }
+                    for r in runs
+                ],
+            }
+        ),
     }
     save_bundle(bundle, out)
     check = verify_bundle(out, cache_dir, splits.dev[0])
@@ -193,7 +216,7 @@ def update_bundle_metrics(
     MODEL_CARD.md."""
     bundle = load_bundle(path)
     before = bundle.get("weights_sha256") or weights_sha256(bundle["fold_state_dicts"])
-    bundle["metrics"] = {**bundle["metrics"], "locked_test": locked_test}
+    bundle["metrics"] = {**bundle["metrics"], "locked_test": json_safe(locked_test)}
     if weights_sha256(bundle["fold_state_dicts"]) != before:
         raise TrainingError(
             "The model weights changed since export; refusing to update the bundle."

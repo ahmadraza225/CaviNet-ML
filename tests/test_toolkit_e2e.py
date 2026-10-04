@@ -99,6 +99,8 @@ def test_exported_bundle_loads_in_the_application_and_produces_a_result(pipeline
     bundle = load_bundle(pipeline["work"] / "export" / "cavinet_model.pth")
     assert bundle["is_demo"] is True and bundle["metrics"]["locked_test"]["n"] > 0
     assert bundle["architecture"]["block_inplanes"] == [64, 128, 256, 512]  # the full network
+    # The worker stores the metrics in a PostgreSQL JSON column, which refuses NaN.
+    json.dumps({k: v for k, v in bundle.items() if k != "fold_state_dicts"}, allow_nan=False)
     with open_source(pipeline["root"] / "data" / "dicom-dataset.zip") as source:
         case = next(c for c in source.layout().cases if c.case_id == "TB_001")
         scan = source.extract_case(case, tmp_path / "scan")
