@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ML package (ruff + pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install (with the training toolkit)
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.8,<3"
+          pip install -e ".[dev,train]"
+      - name: Cache the lungmask R231 weights
+        uses: actions/cache@v4
+        with:
+          path: ~/lungmask
+          key: lungmask-r231-d5d2fc3d
+      - name: Download the lungmask R231 weights (for the real segmenter test)
+        run: |
+          mkdir -p ~/lungmask
+          f=~/lungmask/unet_r231-d5d2fc3d.pth
+          [ -f "$f" ] || curl -fsSL -o "$f" \
+            https://github.com/JoHof/lungmask/releases/download/v0.0/unet_r231-d5d2fc3d.pth
+          echo "d5d2fc3df432115933491f115b283e94d1f5c841c0e82f6e7bd2d65d3ccde69f  $f" | sha256sum -c
+          echo "LUNGMASK_WEIGHTS=$f" >> "$GITHUB_ENV"
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Test (includes the synthetic end-to-end training pipeline)
+        env:
+          CAVINET_E2E_OUT: ${{ runner.temp }}/toolkit-e2e
+        run: pytest --cov --cov-report=term-missing
+      - name: Keep the synthetic evaluation report, figures and model card
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolkit-e2e-synthetic-report
+          path: ${{ runner.temp }}/toolkit-e2e
+          if-no-files-found: ignore

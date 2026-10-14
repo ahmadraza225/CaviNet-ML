@@ -1,8 +1,20 @@
-# cavinet_ml
+# CaviNet ML
 
-The CaviNet AI package. The same code is used by the training toolkit (on the GPU
-computer) and by the application worker, so preprocessing is identical in both. The training
-toolkit's step-by-step guide is [`docs/TRAINING_RUNBOOK.md`](../docs/TRAINING_RUNBOOK.md).
+The AI package (`cavinet_ml`) and training toolkit (`cavinet-ml`) of
+[CaviNet](https://github.com/ahmadraza225/CaviNet_V1): differentiating pulmonary TB from NTM
+lung disease on chest CT. The same code is used by the training toolkit (on the GPU computer)
+and by the application worker, so preprocessing is identical in both.
+
+This repository is included in the main repository as the `ml/` folder (a git submodule). The
+step-by-step training guide is
+[`docs/TRAINING_RUNBOOK.md`](https://github.com/ahmadraza225/CaviNet_V1/blob/main/docs/TRAINING_RUNBOOK.md)
+in the main repository.
+
+| Path | Contents |
+|---|---|
+| `cavinet_ml/` | The package (modules below) |
+| `configs/` | Training configuration: `train.yaml` (real training), `ci.yaml` (tests) |
+| `tests/` | pytest, including the synthetic end-to-end training pipeline |
 
 | Module | Scope section | What it does |
 |---|---|---|
@@ -33,7 +45,7 @@ toolkit's step-by-step guide is [`docs/TRAINING_RUNBOOK.md`](../docs/TRAINING_RU
 
 ```bash
 pip install --index-url https://download.pytorch.org/whl/cpu torch   # CPU PyTorch first
-pip install -e "ml[dev,train]"       # train: the training toolkit's extra libraries
+pip install -e ".[dev,train]"        # train: the training toolkit's extra libraries
 cavinet-ml --version
 cavinet-ml fetch-model --out models/cavinet_model.pth   # or: cavinet-ml build-demo
 cavinet-ml --help                    # every toolkit command

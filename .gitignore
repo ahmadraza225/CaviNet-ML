@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets, data and model files are never committed
+.env
+data/
+work/
+*.pth
+*.pt
+*.dcm
+*.nii
+*.nii.gz
+*.zip
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
