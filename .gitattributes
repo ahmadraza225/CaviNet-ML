@@ -1,0 +1,3 @@
+# splits.json is hashed (its SHA-256 is recorded in each training run, the model bundle and the
+# model card), so every checkout must have the exact committed bytes: LF line endings everywhere.
+splits.json text eol=lf

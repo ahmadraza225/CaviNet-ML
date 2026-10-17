@@ -180,6 +180,17 @@ def test_split_dataset_excludes_failed_and_unlisted_patients_and_locks_the_file(
         split_dataset(work / "manifest.csv", work / "qc" / "qc.csv", out, **QUIET)
 
 
+def test_split_file_has_lf_line_endings_on_every_platform(tmp_path, dataset):
+    # Its SHA-256 is recorded in every training run, the model bundle and the model card, so
+    # the bytes must not depend on the operating system (text mode writes CRLF on Windows).
+    _run(dataset)  # the QC report; patients already done are not processed again
+    work = dataset / "work"
+    out = tmp_path / "splits.json"
+    split_dataset(work / "manifest.csv", work / "qc" / "qc.csv", out, n_folds=2, **QUIET)
+    data = out.read_bytes()
+    assert b"\r\n" not in data and data.endswith(b"}\n")
+
+
 def test_split_needs_every_patient_preprocessed(tmp_path, dataset):
     work = dataset / "work"
     qc = tmp_path / "qc.csv"

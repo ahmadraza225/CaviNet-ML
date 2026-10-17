@@ -188,7 +188,9 @@ def split_dataset(
         "excluded": dict(sorted(excluded.items(), key=lambda kv: _order(kv[0]))),
     }
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(document, indent=1) + "\n", encoding="utf-8")
+    # LF on every platform: the file's SHA-256 is recorded in each run, the bundle and the model
+    # card, and must match the committed file.
+    out.write_text(json.dumps(document, indent=1) + "\n", encoding="utf-8", newline="\n")
     counts = document["counts"]
     log(
         f"Wrote {out}: test {counts['test']['n']} ({counts['test']['tb']} TB, "
