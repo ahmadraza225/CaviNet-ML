@@ -4,6 +4,10 @@
    optional SHA-256, and verify it loads as a bundle.
 2. Otherwise, or if the download fails, build the demo bundle (is_demo = true).
 
+A valid installed model is kept, except that a URL replaces an installed demo model, and a
+SHA-256 that differs from the installed file's replaces it with the newer release. If that
+replacement download fails, the installed model stays.
+
 A model card (`model_card.json`, the bundle without weights) is written beside it.
 """
 
@@ -45,6 +49,17 @@ def download(url: str, destination: Path, sha256: str | None = None) -> None:
     temporary.replace(destination)
 
 
+def _replacement_reason(installed: dict, out: Path, url: str | None, sha256: str | None):
+    """Why a valid installed model should be replaced by the download, or None to keep it."""
+    if not url:
+        return None
+    if installed.get("is_demo"):
+        return "The demo model is installed; replacing it with the model from MODEL_URL."
+    if sha256 and file_sha256(out) != sha256.lower():
+        return "The installed model is not the one MODEL_SHA256 names; downloading the new model."
+    return None
+
+
 def fetch_model(
     out: Path | str,
     *,
@@ -54,16 +69,23 @@ def fetch_model(
     build_demo: Callable[..., object] = build_demo_bundle,
     log: Callable[[str], None] = print,
 ) -> str:
-    """Returns "kept", "downloaded" or "demo"."""
+    """Returns "kept", "downloaded" or "demo". A URL of "none" means no URL (the demo model)."""
+    if url and url.strip().lower() == "none":
+        url = None
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    installed = None
     if out.exists() and not force:
         try:
-            load_bundle(out, mmap=True)
-            log(f"A valid model is already installed at {out}.")
-            return "kept"
+            installed = load_bundle(out, mmap=True)
         except BundleError:
             log(f"{out} is not a valid model bundle; replacing it.")
+        else:
+            reason = _replacement_reason(installed, out, url, sha256)
+            if reason is None:
+                log(f"A valid model is already installed at {out}.")
+                return "kept"
+            log(reason)
     if url:
         log(f"Downloading the model from {url} …")
         try:
@@ -71,8 +93,12 @@ def fetch_model(
             write_model_card(out)
             log(f"Model downloaded to {out}.")
             return "downloaded"
-        except Exception as error:  # noqa: BLE001 - any failure falls back to the demo
-            log(f"Download failed ({type(error).__name__}: {error}); building the demo model.")
+        except Exception as error:  # noqa: BLE001 - any failure falls back
+            failed = f"Download failed ({type(error).__name__}: {error})"
+            if installed is not None:
+                log(f"{failed}; keeping the installed model.")
+                return "kept"
+            log(f"{failed}; building the demo model.")
     else:
         log("No MODEL_URL is set; building the demo model (synthetic data, NOT FOR CLINICAL USE).")
     build_demo(out, log=log)

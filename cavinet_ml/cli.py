@@ -146,6 +146,18 @@ def build_parser() -> argparse.ArgumentParser:
         command = commands.add_parser(name, help=text)
         _workspace_options(command)
 
+    verification = commands.add_parser(
+        "verification-set", help="real test-set scans + expected results for checking the app"
+    )
+    _workspace_options(verification)
+    verification.add_argument("--data", type=Path, required=True, help="dataset zip or folder")
+    verification.add_argument("--out", type=Path, default=Path("verification"))
+    verification.add_argument("--per-class", type=int, default=5)
+
+    tables = commands.add_parser("tables", help="thesis tables from the evaluation outputs")
+    _workspace_options(tables, docs=True)
+    tables.add_argument("--out", type=Path, help="default: <docs>/tables")
+
     compare = commands.add_parser("compare", help="FR-10.8: DeLong test of two models' AUCs")
     _workspace_options(compare)
     compare.add_argument("--a", default="ct", help="ct, clinical, metadata or a CSV (default: ct)")
@@ -253,6 +265,21 @@ def _run(args: argparse.Namespace) -> int:
             evaluate_test(
                 ws, bundle_path=args.bundle or ws.bundle, force=args.force, reason=args.reason
             )
+    elif args.command == "verification-set":
+        from cavinet_ml.dataset.verification import write_verification_set
+
+        write_verification_set(
+            args.data,
+            manifest=ws.manifest,
+            splits=ws.splits,
+            predictions=ws.evaluation / "test_predictions.csv",
+            out=args.out,
+            per_class=args.per_class,
+        )
+    elif args.command == "tables":
+        from cavinet_ml.evaluation.tables import export_tables
+
+        export_tables(ws, args.out)
     elif args.command in ("baseline", "shortcut-check"):
         from cavinet_ml.evaluation.baselines import run_baseline
 

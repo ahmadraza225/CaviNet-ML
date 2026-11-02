@@ -14,7 +14,7 @@ from cavinet_ml.cli import main
 from cavinet_ml.demo.synthetic import synthetic_volume
 from cavinet_ml.evaluation import brier_score, roc_auc, threshold_metrics
 from cavinet_ml.fetch import fetch_model
-from cavinet_ml.model.bundle import file_sha256, load_bundle
+from cavinet_ml.model.bundle import file_sha256, load_bundle, save_bundle
 from cavinet_ml.preprocessing import SegmenterUnavailable
 from cavinet_ml.preprocessing.lungmask_segmenter import R231_FILENAME, LungmaskSegmenter
 
@@ -63,6 +63,7 @@ def test_fetch_builds_the_demo_model_when_no_url_is_set(tmp_path):
     assert card["is_demo"] is True and card["file_sha256"] == file_sha256(out)
     assert "fold_state_dicts" not in card
     assert fetch_model(out, build_demo=fast_demo, log=lambda m: None) == "kept"
+    assert fetch_model(out, url="none", log=lambda m: None) == "kept"  # MODEL_URL=none: demo
 
 
 def test_fetch_downloads_the_release_asset(tmp_path, tiny_bundle_path):
@@ -92,6 +93,50 @@ def test_a_failed_download_falls_back_to_the_demo_model(tmp_path, tiny_bundle_pa
     )
     assert any("Download failed" in m for m in messages)
     assert not list(out.parent.glob("*.download"))
+
+
+def trained_copy(source, path, version):
+    """The tiny bundle relabelled as a trained (non-demo) release."""
+    bundle = load_bundle(source)
+    bundle.update(is_demo=False, model_name="CaviNet test release", model_version=version)
+    return save_bundle(bundle, path)
+
+
+def test_a_url_replaces_an_installed_demo_model(tmp_path, tiny_bundle_path):
+    out = tmp_path / "models" / "cavinet_model.pth"
+    assert fetch_model(out, build_demo=fast_demo, log=lambda m: None) == "demo"
+    release = trained_copy(tiny_bundle_path, tmp_path / "release" / "v1.pth", "model-v1")
+    messages = []
+    url, sha = release.as_uri(), file_sha256(release)
+    assert fetch_model(out, url=url, sha256=sha, log=messages.append) == "downloaded"
+    assert load_bundle(out)["is_demo"] is False
+    assert any("demo model is installed" in m for m in messages)
+    # The same release again is kept; a URL without a SHA-256 keeps a trained model too.
+    assert fetch_model(out, url=url, sha256=sha, log=lambda m: None) == "kept"
+    assert fetch_model(out, url=url, log=lambda m: None) == "kept"
+    assert fetch_model(out, log=lambda m: None) == "kept"
+
+
+def test_a_new_release_replaces_the_installed_model(tmp_path, tiny_bundle_path):
+    out = trained_copy(tiny_bundle_path, tmp_path / "models" / "cavinet_model.pth", "model-v1")
+    newer = trained_copy(tiny_bundle_path, tmp_path / "release" / "v2.pth", "model-v2")
+    result = fetch_model(out, url=newer.as_uri(), sha256=file_sha256(newer), log=lambda m: None)
+    assert result == "downloaded" and load_bundle(out)["model_version"] == "model-v2"
+
+
+def test_a_failed_replacement_keeps_the_installed_model(tmp_path):
+    out = tmp_path / "models" / "cavinet_model.pth"
+    assert fetch_model(out, build_demo=fast_demo, log=lambda m: None) == "demo"
+    before = file_sha256(out)
+    messages = []
+    missing = (tmp_path / "missing.pth").as_uri()
+
+    def no_rebuild(out, log=print):
+        raise AssertionError("the demo model must not be rebuilt")
+
+    assert fetch_model(out, url=missing, build_demo=no_rebuild, log=messages.append) == "kept"
+    assert file_sha256(out) == before
+    assert any("keeping the installed model" in m for m in messages)
 
 
 def test_an_invalid_installed_model_is_replaced_and_force_rebuilds(tmp_path):
