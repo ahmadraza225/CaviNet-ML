@@ -145,7 +145,10 @@ def cross_validation_table(ws: Workspace) -> Table:
         ["Expected calibration error", _num(oof["ece_before"]), _num(oof["ece"])],
         ["Temperature", "1 (none)", _num(calibration["temperature"], 4)],
     ]
-    note = f"{oof['n']} development patients, each predicted by the fold model that did not see it."
+    note = (
+        f"{calibration['n']} development patients, each predicted by the fold model that did "
+        "not see it."
+    )
     return "Table 3. Cross-validation and calibration", header, body, note
 
 
