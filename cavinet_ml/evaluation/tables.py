@@ -136,13 +136,14 @@ def folds_table(ws: Workspace) -> Table:
 
 
 def cross_validation_table(ws: Workspace) -> Table:
-    oof = read_calibration(ws.calibration)["oof"]
+    calibration = read_calibration(ws.calibration)
+    oof = calibration["oof"]
     header = ["Measure", "Before calibration", "After calibration"]
     body = [
         ["Pooled out-of-fold AUC (95% CI)", _with_ci(oof["auc"], oof["auc_ci"]), "same"],
         ["Brier score", _num(oof["brier_before"]), _num(oof["brier"])],
         ["Expected calibration error", _num(oof["ece_before"]), _num(oof["ece"])],
-        ["Temperature", "1 (none)", _num(oof["temperature"], 4)],
+        ["Temperature", "1 (none)", _num(calibration["temperature"], 4)],
     ]
     note = f"{oof['n']} development patients, each predicted by the fold model that did not see it."
     return "Table 3. Cross-validation and calibration", header, body, note
