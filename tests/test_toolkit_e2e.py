@@ -10,9 +10,11 @@
 Set CAVINET_E2E_OUT to keep the report, figures and model card (CI uploads them).
 """
 
+import csv
 import json
 import os
 import shutil
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -110,6 +112,61 @@ def test_exported_bundle_loads_in_the_application_and_produces_a_result(pipeline
     assert 0.0 <= result.decision["probability_tb"] <= 1.0
     assert result.model["is_demo"] is True and result.model["folds"] == 2
     assert result.previews.count == 48 and len(result.fold_logits) == 2
+
+
+def test_thesis_tables_are_written_from_the_outputs(pipeline):
+    docs = pipeline["docs"]
+    assert main(["tables", *pipeline["with_docs"]]) == 0
+    tables = docs / "tables"
+    names = sorted(p.name for p in tables.glob("*.csv"))
+    assert names == [
+        "1_dataset.csv",
+        "2_folds.csv",
+        "3_cross_validation.csv",
+        "4_test_metrics.csv",
+        "5_baselines.csv",
+        "6_subgroups.csv",
+        "7_hypotheses.csv",
+    ]
+    with (tables / "1_dataset.csv").open(encoding="utf-8") as handle:
+        dataset = list(csv.reader(handle))
+    patients = dict(zip(dataset[0], dataset[1], strict=True))
+    splits = json.loads((pipeline["root"] / "splits.json").read_text(encoding="utf-8"))
+    total = sum(int(patients[f"All {name}"]) for name in ("TB", "NTM"))
+    assert total == len(splits["test"]) + sum(len(f) for f in splits["folds"])
+    with (tables / "2_folds.csv").open(encoding="utf-8") as handle:
+        assert len(list(csv.reader(handle))) == 1 + 2  # header + the two CI folds
+    summary = (tables / "TABLES.md").read_text(encoding="utf-8")
+    assert "SYNTHETIC REHEARSAL" in summary
+    for title in ("Table 1.", "Table 4. Locked test set performance", "Table 7. Hypotheses"):
+        assert title in summary
+    log = (docs / "audit" / "evaluation_runs.jsonl").read_text(encoding="utf-8").splitlines()
+    assert sum(json.loads(line)["split"] == "test" for line in log) == 2  # no new evaluation
+
+
+def test_tables_need_the_test_results(tmp_path, capsys):
+    assert main(["tables", "--work", str(tmp_path), "--docs", str(tmp_path / "docs")]) == EXIT_ERROR
+    assert "evaluate --split test" in capsys.readouterr().err
+
+
+def test_verification_set_has_real_zips_and_the_toolkit_probabilities(pipeline, tmp_path):
+    out = tmp_path / "verification"
+    data = pipeline["root"] / "data" / "dicom-dataset.zip"
+    paths = ["--work", str(pipeline["work"]), "--splits", str(pipeline["root"] / "splits.json")]
+    command = ["verification-set", "--data", str(data), "--out", str(out), *paths]
+    assert main([*command, "--per-class", "1"]) == 0
+    with (out / "expected.csv").open(encoding="utf-8") as handle:
+        expected = list(csv.DictReader(handle))
+    assert sorted(r["label"] for r in expected) == ["NTM", "TB"]
+    with (pipeline["work"] / "evaluation" / "test_predictions.csv").open(encoding="utf-8") as h:
+        toolkit = {r["case_id"]: float(r["ct_probability"]) for r in csv.DictReader(h)}
+    for row in expected:
+        assert float(row["toolkit_probability"]) == pytest.approx(toolkit[row["case_id"]], abs=1e-6)
+        with zipfile.ZipFile(out / row["zip"]) as archive:
+            names = archive.namelist()
+        assert names and all(n.startswith(f"{row['case_id']}/") for n in names)
+        assert len(names) >= int(row["slices"])
+    assert main([*command, "--per-class", "50"]) == EXIT_ERROR  # more than the test set has
 
 
 def test_a_second_test_evaluation_is_refused(pipeline, capsys):
