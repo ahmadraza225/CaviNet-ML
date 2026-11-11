@@ -3,6 +3,7 @@ shows real progress:
 
     prepared = analyser.prepare(dicom_dir, preview_dir)   # "Preprocessing": FR-05.1, FR-05.3
     result = analyser.infer(prepared)                     # "Analysing":     FR-05.2, FR-05.4
+    heatmaps = analyser.explain(prepared, result, preview_dir)  # M-11: FR-11.1, FR-11.2
 
 `PipelineError` means the scan itself cannot be analysed (the message is safe to show);
 any other exception is unexpected and may be transient (the worker retries once, FR-05.5).
@@ -13,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from cavinet_ml.explain import HeatmapSet, grad_cam, write_heatmaps
 from cavinet_ml.inference.ensemble import Ensemble
 from cavinet_ml.io.dicom import DicomLoadError, load_series
 from cavinet_ml.preprocessing.pipeline import Preprocessed, preprocess
@@ -93,3 +95,20 @@ class Analyser:
                 "metrics": info["metrics"],
             },
         )
+
+    def explain(self, prepared: Prepared, result: AnalysisResult, out_dir: Path) -> HeatmapSet:
+        """Grad-CAM heatmaps for the predicted class, next to the previews (M-11)."""
+        started = time.perf_counter()
+        target = result.decision["predicted_class"]
+        sign = 1.0 if target == self.ensemble.label_map[1] else -1.0
+        cam = grad_cam(self.ensemble.models, prepared.preprocessed.volume, sign)
+        heatmaps = write_heatmaps(
+            cam,
+            prepared.preprocessed,
+            prepared.previews,
+            out_dir,
+            self.ensemble.preprocessing,
+            target,
+        )
+        heatmaps.seconds["heatmap"] = round(time.perf_counter() - started, 3)
+        return heatmaps

@@ -20,6 +20,7 @@ class Preprocessed:
     resampled_size: tuple[int, int, int]  # (x, y, z) voxels at target spacing
     crop: tuple[tuple[int, int], ...]  # [z, y, x] (start, stop) in the resampled volume
     seconds: dict[str, float] = field(default_factory=dict)
+    model_mask: np.ndarray | None = None  # the lung mask in model space (output_size, uint8)
 
     @property
     def warnings(self) -> list[str]:
@@ -68,6 +69,7 @@ def preprocess(
     low, high = config.window_hu
     windowed = steps.lung_window(cropped, low, high)
     volume = steps.resize(windowed, config.output_size, config.output_dtype)
+    model_mask = steps.resize_mask(sitk.GetArrayViewFromImage(mask_rs)[box], config.output_size)
     seconds["crop_window_resize"] = time.perf_counter() - started
 
     return Preprocessed(
@@ -77,4 +79,5 @@ def preprocess(
         resampled_size=tuple(image_rs.GetSize()),  # type: ignore[arg-type]
         crop=tuple((s.start, s.stop) for s in box),
         seconds={name: round(value, 3) for name, value in seconds.items()},
+        model_mask=model_mask,
     )
