@@ -180,7 +180,7 @@ def test_rotation_turns_the_anatomy():
         x, NO_NOISE, torch.Generator(), 0.0, _params(angles=(0.0, 0.0, math.pi / 2))
     )
     assert not torch.allclose(out, x, atol=1e-3)
-    assert out.sum() == pytest.approx(x.sum(), rel=0.05)  # a rotation keeps the volume
+    assert out.sum().item() == pytest.approx(x.sum().item(), rel=0.05)  # rotation keeps volume
 
 
 def test_sampled_parameters_stay_within_section_11_4_ranges():
