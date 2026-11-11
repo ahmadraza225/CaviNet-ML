@@ -42,6 +42,8 @@ in the main repository.
 | `evaluation.metrics`, `.stats` | 11.7 | Metrics, bootstrap 95% CIs, calibration error, DeLong test |
 | `evaluation.baselines` | FR-10.8 | `cavinet-ml baseline` / `shortcut-check`: clinical-only and metadata-only models |
 | `evaluation.evaluate` | FR-10.7, FR-10.8 | `cavinet-ml evaluate` (test split once, every run logged) and `compare` |
+| `explain` | M-11 | Grad-CAM heatmaps (fold-averaged), overlays on the previews, top 3 slices, share inside the lungs |
+| `evaluation.heatmap_check` | FR-11.4 | `cavinet-ml heatmap-check`: H4, the heatmap share inside the lungs on the locked test set |
 | `evaluation.tables` | 15.10 | `cavinet-ml tables`: thesis tables (CSV + TABLES.md) from the evaluation outputs |
 | `dataset.verification` | 15.10 | `cavinet-ml verification-set`: real test-set scans and the toolkit's probabilities, for checking the application |
 
