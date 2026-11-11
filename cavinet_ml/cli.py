@@ -154,6 +154,23 @@ def build_parser() -> argparse.ArgumentParser:
     verification.add_argument("--out", type=Path, default=Path("verification"))
     verification.add_argument("--per-class", type=int, default=5)
 
+    heat = commands.add_parser(
+        "heatmap-check", help="FR-11.4 (H4): heatmap share inside the lungs on the test set"
+    )
+    _workspace_options(heat, docs=True)
+    heat.add_argument("--data", type=Path, required=True, help="dataset zip or folder")
+    heat.add_argument("--bundle", type=Path, help="default: <work>/export/cavinet_model.pth")
+    heat.add_argument(
+        "--lungmask-weights",
+        default=os.environ.get("LUNGMASK_WEIGHTS") or None,
+        help="R231 weights (default: LUNGMASK_WEIGHTS)",
+    )
+    heat.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    heat.add_argument(
+        "--no-lungmask", action="store_true", help="TESTS ONLY: always use the fallback crop"
+    )
+    heat.add_argument("--limit", type=int, help="at most this many patients in this run")
+
     tables = commands.add_parser("tables", help="thesis tables from the evaluation outputs")
     _workspace_options(tables, docs=True)
     tables.add_argument("--out", type=Path, help="default: <docs>/tables")
@@ -275,6 +292,18 @@ def _run(args: argparse.Namespace) -> int:
             predictions=ws.evaluation / "test_predictions.csv",
             out=args.out,
             per_class=args.per_class,
+        )
+    elif args.command == "heatmap-check":
+        from cavinet_ml.evaluation.heatmap_check import heatmap_check
+
+        heatmap_check(
+            ws,
+            args.data,
+            args.bundle or ws.bundle,
+            lungmask_weights=args.lungmask_weights,
+            use_lungmask=not args.no_lungmask,
+            device=args.device,
+            limit=args.limit,
         )
     elif args.command == "tables":
         from cavinet_ml.evaluation.tables import export_tables

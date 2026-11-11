@@ -169,6 +169,31 @@ def test_verification_set_has_real_zips_and_the_toolkit_probabilities(pipeline, 
     assert main([*command, "--per-class", "50"]) == EXIT_ERROR  # more than the test set has
 
 
+def test_heatmap_check_reports_h4_and_resumes(pipeline):
+    data = pipeline["root"] / "data" / "dicom-dataset.zip"
+    command = ["heatmap-check", "--data", str(data), "--no-lungmask", *pipeline["with_docs"]]
+    assert main([*command, "--limit", "1"]) == 0
+    shares = pipeline["work"] / "evaluation" / "heatmap_shares.csv"
+    assert len(shares.read_text(encoding="utf-8").splitlines()) == 2  # header + one patient
+    assert main(command) == 0  # resumes with the others
+    splits = json.loads((pipeline["root"] / "splits.json").read_text(encoding="utf-8"))
+    with shares.open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert sorted(r["case_id"] for r in rows) == sorted(splits["test"])
+    assert all(0.0 <= float(r["lung_share"]) <= 1.0 for r in rows)
+    summary = json.loads(
+        (pipeline["work"] / "evaluation" / "heatmap_check.json").read_text(encoding="utf-8")
+    )
+    assert summary["n"] == len(rows) and summary["supported"] == (summary["mean"] >= 0.8)
+    report = (pipeline["docs"] / "EVALUATION_REPORT.md").read_text(encoding="utf-8")
+    assert report.count("## Heatmap explanation (H4)") == 1
+    assert report.index("## Heatmap explanation (H4)") < report.index("## Methods")
+    # Rewriting the cross-validation report keeps the H4 section.
+    assert main(["evaluate", "--split", "dev", *pipeline["with_docs"]]) == 0
+    report = (pipeline["docs"] / "EVALUATION_REPORT.md").read_text(encoding="utf-8")
+    assert report.count("## Heatmap explanation (H4)") == 1
+
+
 def test_a_second_test_evaluation_is_refused(pipeline, capsys):
     again = ["evaluate", "--split", "test", *pipeline["with_docs"]]
     assert main(again) == EXIT_REFUSED

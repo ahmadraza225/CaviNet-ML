@@ -193,11 +193,21 @@ def _data_summary(ws: Workspace) -> dict[str, Any]:
     }
 
 
+def _keep_heatmap_section(ws: Workspace) -> None:
+    """A rewritten report keeps the H4 section of an earlier `cavinet-ml heatmap-check`."""
+    from cavinet_ml.evaluation.heatmap_check import update_report
+
+    summary = ws.evaluation / "heatmap_check.json"
+    if summary.is_file():
+        update_report(ws.report, json.loads(summary.read_text(encoding="utf-8")))
+
+
 def evaluate_dev(ws: Workspace, log: Callable[[str], None] = print) -> dict[str, Any]:
     dev = development_results(ws, log)
     test_path = ws.evaluation / "test_results.json"
     test = json.loads(test_path.read_text(encoding="utf-8")) if test_path.is_file() else None
     write_report(ws.report, data=_data_summary(ws), dev=dev, test=test)
+    _keep_heatmap_section(ws)
     append_log(
         ws.evaluation_log,
         {"split": "dev", "status": "completed", "auc": dev["calibration"]["oof"]["auc"]},
@@ -486,6 +496,7 @@ def _locked_test(
 
     dev = development_results(ws, log)
     write_report(ws.report, data=_data_summary(ws), dev=dev, test=results)
+    _keep_heatmap_section(ws)
     locked_test = {
         "auc": auc["value"],
         "auc_ci": auc["ci"],

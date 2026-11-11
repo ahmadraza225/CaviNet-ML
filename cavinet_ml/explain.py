@@ -73,15 +73,16 @@ def grad_cam(models: list[torch.nn.Module], volume: np.ndarray, sign: float) -> 
     x = torch.from_numpy(np.ascontiguousarray(volume, dtype=np.float32))[None, None]
     maps = []
     for model in models:
+        device = next(model.parameters()).device
         cam = torch.nn.functional.interpolate(
-            _fold_cam(model, x, sign),
+            _fold_cam(model, x.to(device), sign),
             size=tuple(volume.shape),
             mode="trilinear",
             align_corners=False,
         )[0, 0]
         peak = float(cam.max())
         maps.append(cam / peak if peak > 0 else cam)
-    mean = torch.stack(maps).mean(dim=0)
+    mean = torch.stack([m.cpu() for m in maps]).mean(dim=0)
     peak = float(mean.max())
     return (mean / peak if peak > 0 else mean).numpy().astype(np.float32)
 
