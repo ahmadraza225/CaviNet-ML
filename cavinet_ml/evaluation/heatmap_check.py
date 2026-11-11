@@ -24,7 +24,6 @@ from typing import Any
 
 import numpy as np
 
-from cavinet_ml.dataset.manifest import read_manifest
 from cavinet_ml.dataset.source import DatasetError, open_source
 from cavinet_ml.dataset.split import load_splits
 from cavinet_ml.evaluation.stats import bootstrap
@@ -166,8 +165,7 @@ def heatmap_check(
         )
         if not segmenter.available:
             raise DatasetError("The lungmask weights are needed (set LUNGMASK_WEIGHTS).")
-    rows_by_id = {r["case_id"]: r for r in read_manifest(ws.manifest)}
-    test = [c for c in load_splits(ws.splits).test if c in rows_by_id]
+    test = list(load_splits(ws.splits).test)  # labels come from the dataset's class folders
     out = ws.evaluation / "heatmap_shares.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     done = _done(out)
@@ -181,12 +179,13 @@ def heatmap_check(
         entries = {c.case_id: c for c in source.layout().cases}
         for number, case_id in enumerate(todo, 1):
             started = time.perf_counter()
-            row = {"case_id": case_id, "label": "TB" if rows_by_id[case_id]["label"] else "NTM"}
+            entry = entries.get(case_id)
+            row = {"case_id": case_id, "label": entry.label_name if entry else ""}
             folder = Path(tempfile.mkdtemp(prefix="cavinet-heatmap-"))
             try:
-                if case_id not in entries:
+                if entry is None:
                     raise DatasetError(f"{case_id} is not in the dataset")
-                dicom = source.extract_case(entries[case_id], folder / "dicom")
+                dicom = source.extract_case(entry, folder / "dicom")
                 prepared = preprocess(load_series(dicom), segmenter, ensemble.preprocessing)
                 with torch.inference_mode():
                     x = torch.from_numpy(prepared.volume.astype(np.float32))[None, None]
