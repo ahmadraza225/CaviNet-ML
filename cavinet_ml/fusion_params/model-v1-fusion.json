@@ -1,0 +1,85 @@
+{
+  "format": 1,
+  "features": [
+    "ct_logit",
+    "age",
+    "sex_male",
+    "chest_pain",
+    "cough",
+    "expectoration",
+    "fever",
+    "chest_tightness",
+    "haemoptysis",
+    "gasp",
+    "dyspnoea",
+    "chills",
+    "fatigue",
+    "night_sweats",
+    "weight_loss"
+  ],
+  "preprocessing": {
+    "median": {
+      "ct_logit": 0.410645,
+      "age": 52.0
+    },
+    "mean": {
+      "ct_logit": 0.3544588439306358,
+      "age": 50.07129094412331
+    },
+    "scale": {
+      "ct_logit": 1.1700084560135424,
+      "age": 18.268409947073927
+    },
+    "mode": {
+      "sex_male": 1.0,
+      "chest_pain": 0.0,
+      "cough": 1.0,
+      "expectoration": 1.0,
+      "fever": 0.0,
+      "chest_tightness": 0.0,
+      "haemoptysis": 0.0,
+      "gasp": 0.0,
+      "dyspnoea": 0.0,
+      "chills": 0.0,
+      "fatigue": 0.0,
+      "night_sweats": 0.0,
+      "weight_loss": 0.0
+    }
+  },
+  "coefficients": {
+    "ct_logit": 0.7565829735078483,
+    "age": -0.2676944368616467,
+    "sex_male": 0.36639422850024955,
+    "chest_pain": 0.1825855186417347,
+    "cough": 0.8196336088419917,
+    "expectoration": -0.056803267885860195,
+    "fever": 0.27824009749416195,
+    "chest_tightness": 0.009474949867825272,
+    "haemoptysis": -0.27876371139191214,
+    "gasp": -0.32891095197711645,
+    "dyspnoea": -1.0495598072692878,
+    "chills": 0.6886886129700919,
+    "fatigue": -0.9649789670409826,
+    "night_sweats": -0.17655488345465942,
+    "weight_loss": -0.8459130498881102
+  },
+  "intercept": -0.4617942411154785,
+  "version": "model-v1-fusion",
+  "regularisation_c": 1.0,
+  "threshold": 0.5,
+  "is_demo": false,
+  "created_at": "2026-11-12T18:36:04+00:00",
+  "bundle_weights_sha256": "00a92c099209ae34bbd016a15f0941c9a0300a4ca77acab64fd1ed63a23cf6bc",
+  "model_version": "model-v1",
+  "trained_on": "out-of-fold CT logits and clinical values of 1038 development patients",
+  "metrics": {
+    "test_auc": 0.7722812205941659,
+    "test_auc_ci": [
+      0.7088284715687592,
+      0.8304896491463906
+    ],
+    "ct_only_test_auc": 0.7660639870950396,
+    "dev_oof_auc": 0.7666736895331199,
+    "h3_supported": false
+  }
+}

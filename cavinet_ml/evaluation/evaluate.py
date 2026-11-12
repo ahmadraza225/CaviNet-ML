@@ -194,12 +194,16 @@ def _data_summary(ws: Workspace) -> dict[str, Any]:
 
 
 def _keep_heatmap_section(ws: Workspace) -> None:
-    """A rewritten report keeps the H4 section of an earlier `cavinet-ml heatmap-check`."""
-    from cavinet_ml.evaluation.heatmap_check import update_report
+    """A rewritten report keeps the H4 section of an earlier `cavinet-ml heatmap-check` and
+    the H3 section of an earlier `cavinet-ml fusion`."""
+    from cavinet_ml.evaluation import fusion, heatmap_check
 
     summary = ws.evaluation / "heatmap_check.json"
     if summary.is_file():
-        update_report(ws.report, json.loads(summary.read_text(encoding="utf-8")))
+        heatmap_check.update_report(ws.report, json.loads(summary.read_text(encoding="utf-8")))
+    results = ws.work / "fusion" / "fusion_results.json"
+    if results.is_file():
+        fusion.update_report(ws.report, json.loads(results.read_text(encoding="utf-8")))
 
 
 def evaluate_dev(ws: Workspace, log: Callable[[str], None] = print) -> dict[str, Any]:

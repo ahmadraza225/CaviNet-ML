@@ -8,7 +8,10 @@ A valid installed model is kept, except that a URL replaces an installed demo mo
 SHA-256 that differs from the installed file's replaces it with the newer release. If that
 replacement download fails, the installed model stays.
 
-A model card (`model_card.json`, the bundle without weights) is written beside it.
+A model card (`model_card.json`, the bundle without weights) is written beside it, and the
+symptom-assisted prediction parameters (`cavinet_fusion.json`, M-12) for that model: fixed
+demo values for the demo model, otherwise the versioned file in `cavinet_ml/fusion_params/`
+fitted for the model's weights. With no matching file the combined result is not offered.
 """
 
 import json
@@ -18,9 +21,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from cavinet_ml.demo.build import build_demo_bundle
+from cavinet_ml.fusion import FUSION_FILE, FusionError, demo_fusion, load_fusion, save_fusion
 from cavinet_ml.model.bundle import BundleError, file_sha256, load_bundle, metadata
 
 DOWNLOAD_TIMEOUT_SECONDS = 60
+FUSION_PARAMS = Path(__file__).with_name("fusion_params")
 
 
 def write_model_card(bundle_path: Path) -> Path:
@@ -29,6 +34,56 @@ def write_model_card(bundle_path: Path) -> Path:
     card = bundle_path.with_name("model_card.json")
     card.write_text(json.dumps(info, indent=2, default=str) + "\n", encoding="utf-8")
     return card
+
+
+def bundle_weights_sha256(bundle: dict) -> str:
+    stored = bundle.get("weights_sha256")
+    if stored:
+        return str(stored)
+    from cavinet_ml.training.export import weights_sha256
+
+    return weights_sha256(bundle["fold_state_dicts"])
+
+
+def install_fusion(
+    bundle_path: Path | str,
+    *,
+    params_dir: Path = FUSION_PARAMS,
+    log: Callable[[str], None] = print,
+) -> Path | None:
+    """Write cavinet_fusion.json beside the bundle for this model, or remove a stale one."""
+    bundle_path = Path(bundle_path)
+    out = bundle_path.with_name(FUSION_FILE)
+    bundle = load_bundle(bundle_path, mmap=True)
+    weights = bundle_weights_sha256(bundle)
+    if bundle.get("is_demo"):
+        save_fusion(demo_fusion(weights), out)
+        log(f"Demo symptom-assisted prediction parameters written to {out}.")
+        return out
+    for candidate in sorted(params_dir.glob("*.json")) if params_dir.is_dir() else []:
+        try:
+            fusion = load_fusion(candidate)
+        except FusionError as error:
+            log(f"Skipping {candidate.name}: {error}")
+            continue
+        if fusion.matches(weights):
+            save_fusion(fusion.params, out)
+            log(f"Symptom-assisted prediction parameters {fusion.version} written to {out}.")
+            return out
+    out.unlink(missing_ok=True)
+    log(
+        "No symptom-assisted prediction parameters match this model; the application shows "
+        "the CT-only result."
+    )
+    return None
+
+
+def _with_fusion(out: Path, status: str, log: Callable[[str], None]) -> str:
+    try:
+        install_fusion(out, log=log)
+    except Exception as error:  # noqa: BLE001 - the model itself is installed
+        log(f"Symptom-assisted prediction not installed ({type(error).__name__}: {error}).")
+    return status
 
 
 def download(url: str, destination: Path, sha256: str | None = None) -> None:
@@ -84,7 +139,7 @@ def fetch_model(
             reason = _replacement_reason(installed, out, url, sha256)
             if reason is None:
                 log(f"A valid model is already installed at {out}.")
-                return "kept"
+                return _with_fusion(out, "kept", log)
             log(reason)
     if url:
         log(f"Downloading the model from {url} …")
@@ -92,15 +147,15 @@ def fetch_model(
             download(url, out, sha256)
             write_model_card(out)
             log(f"Model downloaded to {out}.")
-            return "downloaded"
+            return _with_fusion(out, "downloaded", log)
         except Exception as error:  # noqa: BLE001 - any failure falls back
             failed = f"Download failed ({type(error).__name__}: {error})"
             if installed is not None:
                 log(f"{failed}; keeping the installed model.")
-                return "kept"
+                return _with_fusion(out, "kept", log)
             log(f"{failed}; building the demo model.")
     else:
         log("No MODEL_URL is set; building the demo model (synthetic data, NOT FOR CLINICAL USE).")
     build_demo(out, log=log)
     write_model_card(out)
-    return "demo"
+    return _with_fusion(out, "demo", log)

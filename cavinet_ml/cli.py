@@ -171,6 +171,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     heat.add_argument("--limit", type=int, help="at most this many patients in this run")
 
+    fusion = commands.add_parser("fusion", help="FR-12.2 (H3): CT + symptoms model; test set once")
+    _workspace_options(fusion, docs=True)
+    fusion.add_argument(
+        "--force", action="store_true", help="evaluate on the test set again (logged)"
+    )
+    fusion.add_argument("--reason", help="required with --force")
+
     tables = commands.add_parser("tables", help="thesis tables from the evaluation outputs")
     _workspace_options(tables, docs=True)
     tables.add_argument("--out", type=Path, help="default: <docs>/tables")
@@ -305,6 +312,10 @@ def _run(args: argparse.Namespace) -> int:
             device=args.device,
             limit=args.limit,
         )
+    elif args.command == "fusion":
+        from cavinet_ml.evaluation.fusion import run_fusion
+
+        run_fusion(ws, force=args.force, reason=args.reason)
     elif args.command == "tables":
         from cavinet_ml.evaluation.tables import export_tables
 
@@ -346,10 +357,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "build-demo":
         from cavinet_ml.demo.build import build_demo_bundle
-        from cavinet_ml.fetch import write_model_card
+        from cavinet_ml.fetch import install_fusion, write_model_card
 
         build_demo_bundle(args.out, seed=args.seed)
         write_model_card(Path(args.out))
+        install_fusion(Path(args.out))
         return 0
     if args.command is None:
         parser.print_help()

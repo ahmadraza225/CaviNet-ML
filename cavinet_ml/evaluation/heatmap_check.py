@@ -26,6 +26,7 @@ import numpy as np
 
 from cavinet_ml.dataset.source import DatasetError, open_source
 from cavinet_ml.dataset.split import load_splits
+from cavinet_ml.evaluation.report_sections import set_section, set_summary_row
 from cavinet_ml.evaluation.stats import bootstrap
 from cavinet_ml.explain import H4_TARGET, grad_cam, lung_share
 from cavinet_ml.inference import Ensemble
@@ -113,21 +114,24 @@ def report_section(summary: dict[str, Any]) -> list[str]:
     return [*lines, ""]
 
 
+def summary_row(summary: dict[str, Any]) -> str:
+    if not summary.get("n"):
+        return "| H4: the heatmap falls mostly inside the lungs | Not measured. |"
+    verdict = "**Supported**" if summary["supported"] else "**Not supported**"
+    return (
+        f"| H4: the heatmap falls mostly inside the lungs | {verdict}. Mean share inside the "
+        f"lung mask {summary['mean']:.1%} (95% CI {summary['ci'][0]:.1%} to "
+        f"{summary['ci'][1]:.1%}) on {summary['n']} patients; target ≥ {summary['target']:.0%}. |"
+    )
+
+
 def update_report(report: Path, summary: dict[str, Any]) -> Path:
-    """Insert or replace the H4 section, before "## Methods" if there is one."""
+    """Insert or replace the H4 section (before "## Methods" if there is one) and its row in
+    the summary table."""
     text = report.read_text(encoding="utf-8") if report.is_file() else ""
-    section = "\n".join(report_section(summary))
-    if SECTION in text:
-        start = text.index(SECTION)
-        end = text.find("\n## ", start + len(SECTION))
-        text = text[:start] + section + ("\n" + text[end + 1 :] if end != -1 else "")
-    elif "\n## Methods" in text:
-        at = text.index("\n## Methods") + 1
-        text = text[:at] + section + "\n" + text[at:]
-    elif text.strip():
-        text = text.rstrip("\n") + "\n\n" + section
-    else:
-        text = section
+    text = set_section(text, SECTION, "\n".join(report_section(summary)))
+    after = "| H3:" if "\n| H3:" in text else "| H2:"
+    text = set_summary_row(text, "| H4:", summary_row(summary), after=after)
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(text, encoding="utf-8")
     return report

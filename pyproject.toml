@@ -39,6 +39,10 @@ cavinet-ml = "cavinet_ml.cli:main"
 [tool.setuptools.packages.find]
 include = ["cavinet_ml*"]
 
+[tool.setuptools.package-data]
+# Symptom-assisted prediction parameters, one file per released model (M-12).
+cavinet_ml = ["fusion_params/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
