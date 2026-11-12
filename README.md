@@ -44,6 +44,9 @@ in the main repository.
 | `evaluation.evaluate` | FR-10.7, FR-10.8 | `cavinet-ml evaluate` (test split once, every run logged) and `compare` |
 | `explain` | M-11 | Grad-CAM heatmaps (fold-averaged), overlays on the previews, top 3 slices, share inside the lungs |
 | `evaluation.heatmap_check` | FR-11.4 | `cavinet-ml heatmap-check`: H4, the heatmap share inside the lungs on the locked test set |
+| `fusion` | M-12 | The symptom-assisted model in the application: reads `cavinet_fusion.json` and combines the CT logit with age, sex and the 12 symptoms (numpy only) |
+| `evaluation.fusion` | FR-12.2 | `cavinet-ml fusion`: fits the fusion on out-of-fold CT logits, evaluates it once on the locked test set (H3, DeLong vs CT alone) |
+| `fusion_params/` | M-12 | One fusion file per released model; `fetch-model` installs the one fitted for the installed model's weights |
 | `evaluation.tables` | 15.10 | `cavinet-ml tables`: thesis tables (CSV + TABLES.md) from the evaluation outputs |
 | `dataset.verification` | 15.10 | `cavinet-ml verification-set`: real test-set scans and the toolkit's probabilities, for checking the application |
 
