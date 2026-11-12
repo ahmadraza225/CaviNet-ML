@@ -178,3 +178,10 @@ def resize(array: np.ndarray, size: tuple[int, int, int], dtype: str = "float16"
         tensor, size=tuple(size), mode="trilinear", align_corners=False
     )
     return resized[0, 0].numpy().astype(dtype)
+
+
+def resize_mask(mask: np.ndarray, size: tuple[int, int, int]) -> np.ndarray:
+    """Nearest-neighbour resize of a 0/1 mask to `size` voxels (uint8)."""
+    tensor = torch.from_numpy(np.ascontiguousarray(mask, dtype=np.float32))[None, None]
+    resized = torch.nn.functional.interpolate(tensor, size=tuple(size), mode="nearest")
+    return (resized[0, 0].numpy() > 0.5).astype(np.uint8)
