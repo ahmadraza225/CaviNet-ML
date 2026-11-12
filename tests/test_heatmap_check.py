@@ -51,3 +51,21 @@ def test_the_section_is_placed_before_methods_and_replaced_on_a_rerun(tmp_path):
     missing = tmp_path / "new.md"
     update_report(missing, first)
     assert missing.read_text().startswith(SECTION)
+
+
+def test_the_summary_table_gets_one_h4_row_after_h2_or_h3(tmp_path):
+    report = tmp_path / "EVALUATION_REPORT.md"
+    report.write_text(
+        "# Report\n\n## Summary\n\n| Question | Result |\n|---|---|\n| H1: a | x |\n"
+        "| H2: b | y |\n| Cross-validation | z |\n\n## Methods\n\nm\n"
+    )
+    update_report(report, summarise(rows(["0.2", "0.3"], ["TB", "NTM"]), {}))
+    update_report(report, summarise(rows(["0.25", "0.3"], ["TB", "NTM"]), {}))
+    summary = report.read_text().split("## Summary")[1].split("\n## ")[0]
+    lines = [line[:6] for line in summary.splitlines() if line.startswith("| ")]
+    assert lines == ["| Ques", "| H1: ", "| H2: ", "| H4: ", "| Cros"]
+    assert "**Not supported**. Mean share inside the lung mask 27.5%" in report.read_text()
+    no_table = tmp_path / "plain.md"
+    no_table.write_text("# Report\n")
+    update_report(no_table, summarise(rows(["0.9"], ["TB"]), {}))
+    assert "| H4:" not in no_table.read_text()
