@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cavinet-ml"
-version = "1.0.0"
+version = "1.2.0"
 description = "CaviNet AI pipeline: preprocessing, model, inference, training and evaluation"
 requires-python = ">=3.11"
 # PyTorch: install the CPU build first where possible (see the Makefile and Dockerfile):
